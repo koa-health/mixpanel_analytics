@@ -38,7 +38,7 @@ class _MyHomePageState extends State<MyHomePage> {
     super.initState();
 
     _mixpanel = MixpanelAnalytics(
-      token: '1b1a667fa1e4a45af47da6b6ea9c7ad2',
+      token: 'XXXXXX',
       userId$: _user$.stream,
       verbose: true,
       onError: (e) => setState(() {
@@ -48,7 +48,7 @@ class _MyHomePageState extends State<MyHomePage> {
     );
 
     _mixpanelBatch = MixpanelAnalytics.batch(
-      token: '1b1a667fa1e4a45af47da6b6ea9c7ad2',
+      token: 'XXXXXX',
       userId$: _user$.stream,
       uploadInterval: Duration(seconds: 30),
       verbose: true,
