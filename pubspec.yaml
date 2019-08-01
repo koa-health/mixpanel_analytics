@@ -2,8 +2,9 @@ name: mixpanel_analytics
 description:
   A dart wrapper on the mixpanel REST API to be used in Flutter applications.
   As this is using the http REST API it works both with Android and iOS.
-version: 1.0.0+1
-author: Alpha Innovation
+version: 1.0.0
+author: "Alpha Dev Team <alphahealth-development@telefonica.com>"
+homepage: https://github.com/Alpha-health/mixpanel_analytics
 repository: https://github.com/Alpha-health/mixpanel_analytics
 issue_tracker: https://github.com/Alpha-health/mixpanel_analytics/issues
 
