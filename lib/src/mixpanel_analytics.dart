@@ -50,6 +50,9 @@ class MixpanelAnalytics {
   // Stores the value of the userId
   String _userId;
 
+  /// Reference to the timer set to upload events in batch
+  Timer _batchTimer;
+
   // If this is not null, any error will be sent to this function, otherwise `debugPrint` will be used.
   void Function(Object error) _onError;
 
@@ -68,7 +71,7 @@ class MixpanelAnalytics {
   /// We can inject the client required, useful for testing
   Client http = Client();
 
-  static const String _baseApi = 'https://api.mixpanel.com';
+  static const String baseApi = 'https://api.mixpanel.com';
 
   static const _prefsKey = 'mixpanel.analytics';
 
@@ -77,6 +80,14 @@ class MixpanelAnalytics {
 
   /// When in batch mode, events will be added to a queue and send in batch every [_uploadInterval]
   bool get isBatchMode => _uploadInterval.compareTo(Duration.zero) != 0;
+
+  /// Used in case we want to remove the timer to send batched events.
+  void dispose() {
+    if (_batchTimer != null) {
+      _batchTimer.cancel();
+      _batchTimer = null;
+    }
+  }
 
   /// Provides an instance of this class.
   /// The instance of the class created with this constructor will send the events on the fly, which could result on high traffic in case there are many events.
@@ -120,7 +131,7 @@ class MixpanelAnalytics {
     _uploadInterval = uploadInterval;
     _onError = onError;
 
-    Timer.periodic(_uploadInterval, (_) => _uploadQueuedEvents());
+    _batchTimer = Timer.periodic(_uploadInterval, (_) => _uploadQueuedEvents());
 
     _userId$?.listen((id) => _userId = id);
   }
@@ -150,7 +161,6 @@ class MixpanelAnalytics {
         event, properties, time ?? DateTime.now(), ip, insertId);
 
     if (isBatchMode) {
-      await _restoreQueuedEventsFromStorage();
       _trackEvents.add(trackEvent);
       return _saveQueuedEventsToLocalStorage();
     }
@@ -186,7 +196,6 @@ class MixpanelAnalytics {
         operation, value, time ?? DateTime.now(), ip, ignoreTime, ignoreAlias);
 
     if (isBatchMode) {
-      await _restoreQueuedEventsFromStorage();
       _engageEvents.add(engageEvent);
       return _saveQueuedEventsToLocalStorage();
     }
@@ -198,13 +207,11 @@ class MixpanelAnalytics {
   // Reads queued events from the storage when we are in batch mode.
   // We do this in case the app was closed with events pending to be sent.
   Future<void> _restoreQueuedEventsFromStorage() async {
-    if (!_isQueuedEventsReadFromStorage) {
-      prefs ??= await SharedPreferences.getInstance();
-      var encoded = prefs.getString(_prefsKey);
-      if (encoded != null) {
-        Map<String, dynamic> events = json.decode(encoded);
-        _queuedEvents.addAll(events);
-      }
+    prefs ??= await SharedPreferences.getInstance();
+    var encoded = prefs.getString(_prefsKey);
+    if (encoded != null) {
+      Map<String, dynamic> events = json.decode(encoded);
+      _queuedEvents.addAll(events);
     }
   }
 
@@ -222,6 +229,10 @@ class MixpanelAnalytics {
   // Tries to send all events pending to be send.
   // TODO if error when sending, send events in isolation identify the incorrect message
   Future<void> _uploadQueuedEvents() async {
+    if (!_isQueuedEventsReadFromStorage) {
+      await _restoreQueuedEventsFromStorage();
+      _isQueuedEventsReadFromStorage = true;
+    }
     await _uploadEvents(_trackEvents, _sendTrackBatch);
     await _uploadEvents(_engageEvents, _sendEngageBatch);
     await _saveQueuedEventsToLocalStorage();
@@ -313,7 +324,7 @@ class MixpanelAnalytics {
 
   // Sends the event to the mixpanel API endpoint.
   Future<bool> _sendEvent(String event, String op) async {
-    var url = '$_baseApi/$op/?data=$event&verbose=${_verbose ? 1 : 0}';
+    var url = '$baseApi/$op/?data=$event&verbose=${_verbose ? 1 : 0}';
     try {
       var response = await http.get(url, headers: {
         'Content-type': 'application/json',
@@ -332,7 +343,7 @@ class MixpanelAnalytics {
 
   // Sends the batch of events to the mixpanel API endpoint.
   Future<bool> _sendBatch(String batch, String op) async {
-    var url = '$_baseApi/$op/?verbose=${_verbose ? 1 : 0}';
+    var url = '$baseApi/$op/?verbose=${_verbose ? 1 : 0}';
     try {
       var response = await http.post(url, headers: {
         'Content-type': 'application/x-www-form-urlencoded',
