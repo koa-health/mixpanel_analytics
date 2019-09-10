@@ -19,7 +19,7 @@ MixpanelAnalytics(
   userId$: _user$.stream,
   verbose: true,
   shouldAnonymize: true,
-  shaKey: 'test',
+  shaFn: (value) => value,
   onError: (e) => setState(() {
     _error = e;
     _success = null;
@@ -35,7 +35,7 @@ MixpanelAnalytics.batch(
   userId$: _user$.stream,
   uploadInterval: Duration(seconds: 30),
   shouldAnonymize: true,
-  shaKey: 'test',
+  shaFn: (value) => value,
   verbose: true,
   onError: (e) => setState(() {
     _error = e;

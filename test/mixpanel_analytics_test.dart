@@ -58,7 +58,7 @@ void main() {
         .thenAnswer((_) async => response);
   }
 
-  group('MixpanelAnalytics', () {
+  group('MixpanelAnalytics /', () {
     setUp(() {
       userId$ = StreamController<String>();
       http = MockHttpProvider();
@@ -147,7 +147,7 @@ void main() {
     });
   });
 
-  group('MixpanelAnalytics batch', () {
+  group('MixpanelAnalytics batch /', () {
     int uploadIntervalSeconds = 1;
 
     setUp(() {

@@ -42,6 +42,7 @@ class _MyHomePageState extends State<MyHomePage> {
       userId$: _user$.stream,
       verbose: true,
       shouldAnonymize: true,
+      shaFn: (value) => value,
       onError: (e) => setState(() {
         _error = e;
         _success = null;
@@ -53,6 +54,7 @@ class _MyHomePageState extends State<MyHomePage> {
       userId$: _user$.stream,
       uploadInterval: Duration(seconds: 30),
       shouldAnonymize: true,
+      shaFn: (value) => value,
       verbose: true,
       onError: (e) => setState(() {
         _error = e;

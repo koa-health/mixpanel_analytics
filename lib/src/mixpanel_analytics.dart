@@ -4,7 +4,6 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:crypto/crypto.dart';
 
 enum MixpanelUpdateOperations {
   $set,
@@ -16,6 +15,8 @@ enum MixpanelUpdateOperations {
   $unset,
   $delete
 }
+
+typedef ShaFn = String Function(String value);
 
 class MixpanelAnalytics {
   /// This are the update operations allowed for the 'engage' request.
@@ -60,8 +61,8 @@ class MixpanelAnalytics {
   /// As the fields to be anonymized will be the same with every event log, we can keep a cache of the values already anonymized.
   Map<String, String> _anonymized;
 
-  /// Key used to anonymize the data if [shouldAnonymize] is true.
-  String _shaKey;
+  /// Function used to anonymize the data.
+  ShaFn _shaFn;
 
   // If this is not null, any error will be sent to this function, otherwise `debugPrint` will be used.
   void Function(Object error) _onError;
@@ -91,6 +92,9 @@ class MixpanelAnalytics {
   /// When in batch mode, events will be added to a queue and send in batch every [_uploadInterval]
   bool get isBatchMode => _uploadInterval.compareTo(Duration.zero) != 0;
 
+  /// Default sha function to be used when none is provided.
+  static String _defaultShaFn(value) => value;
+
   /// Used in case we want to remove the timer to send batched events.
   void dispose() {
     if (_batchTimer != null) {
@@ -106,14 +110,14 @@ class MixpanelAnalytics {
   /// [token] is the Mixpanel token associated with your project.
   /// [userId$] is a stream which contains the value of the userId that will be used to identify the events for a user.
   /// [shouldAnonymize] will anonymize the sensitive information (userId) sent to mixpanel.
-  /// [shaKey] the key used to anonymize the data, will be 'mixpanel' by default.
+  /// [shaFn] function used to anonymize the data.
   /// [verbose] true will provide a detailed error cause in case the request is not successful.
   /// [onError] is a callback function that will be executed in case there is an error, otherwise `debugPrint` will be used.
   MixpanelAnalytics({
     @required String token,
     @required Stream<String> userId$,
     bool shouldAnonymize,
-    String shaKey,
+    ShaFn shaFn,
     bool verbose,
     Function onError,
   }) {
@@ -122,7 +126,7 @@ class MixpanelAnalytics {
     _verbose = verbose;
     _onError = onError;
     _shouldAnonymize = shouldAnonymize ?? false;
-    _shaKey = shaKey ?? 'mixpanel';
+    _shaFn = shaFn ?? _defaultShaFn;
 
     _userId$?.listen((id) => _userId = id);
   }
@@ -133,7 +137,7 @@ class MixpanelAnalytics {
   /// [userId$] is a stream which contains the value of the userId that will be used to identify the events for a user.
   /// [uploadInterval] is the interval used to batch the events.
   /// [shouldAnonymize] will anonymize the sensitive information (userId) sent to mixpanel.
-  /// [shaKey] the key used to anonymize the data, will be 'mixpanel' by default.
+  /// [shaFn] function used to anonymize the data.
   /// [verbose] true will provide a detailed error cause in case the request is not successful.
   /// [onError] is a callback function that will be executed in case there is an error, otherwise `debugPrint` will be used.
   MixpanelAnalytics.batch({
@@ -141,7 +145,7 @@ class MixpanelAnalytics {
     @required Stream<String> userId$,
     @required Duration uploadInterval,
     bool shouldAnonymize,
-    String shaKey,
+    ShaFn shaFn,
     bool verbose,
     Function onError,
   }) {
@@ -150,7 +154,7 @@ class MixpanelAnalytics {
     _verbose = verbose;
     _uploadInterval = uploadInterval;
     _shouldAnonymize = shouldAnonymize ?? false;
-    _shaKey = shaKey ?? 'mixpanel';
+    _shaFn = shaFn ?? _defaultShaFn;
 
     _onError = onError;
 
@@ -406,6 +410,15 @@ class MixpanelAnalytics {
     return true;
   }
 
+  // Anonymizes the field but also saves it in a local cache.
+  String _anonymize(String field, String value) {
+    _anonymized ??= {};
+    if (_anonymized[field] == null) {
+      _anonymized[field] = _shaFn(value);
+    }
+    return _anonymized[field];
+  }
+
   // Proxies the error to the callback function provided or to standard `debugPrint`.
   void _onErrorHandler(dynamic error, String message) {
     if (_onError != null) {
@@ -413,16 +426,5 @@ class MixpanelAnalytics {
     } else {
       debugPrint(message);
     }
-  }
-
-  String _anonymize(String field, String value) {
-    _anonymized ??= {};
-    if (_anonymized[field] == null) {
-      var key = utf8.encode(_shaKey);
-      var hmacSha256 = Hmac(sha256, key);
-      var bytes = utf8.encode(value);
-      _anonymized[field] = hmacSha256.convert(bytes).toString();
-    }
-    return _anonymized[field];
   }
 }

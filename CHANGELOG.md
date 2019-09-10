@@ -1,3 +1,7 @@
+## [1.2.0] - 2019-09-10
+
+- Allow encoding function to be passed.
+
 ## [1.1.0] - 2019-09-10
 
 - Add option to encode sensitive information to mixpanel.
