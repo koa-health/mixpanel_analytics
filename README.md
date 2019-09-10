@@ -18,6 +18,8 @@ MixpanelAnalytics(
   token: 'XXXXXXXXX',
   userId$: _user$.stream,
   verbose: true,
+  shouldAnonymize: true,
+  shaKey: 'test',
   onError: (e) => setState(() {
     _error = e;
     _success = null;
@@ -32,6 +34,8 @@ MixpanelAnalytics.batch(
   token: 'XXXXXXXXX',
   userId$: _user$.stream,
   uploadInterval: Duration(seconds: 30),
+  shouldAnonymize: true,
+  shaKey: 'test',
   verbose: true,
   onError: (e) => setState(() {
     _error = e;

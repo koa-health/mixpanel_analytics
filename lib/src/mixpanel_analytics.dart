@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:crypto/crypto.dart';
 
 enum MixpanelUpdateOperations {
   $set,
@@ -53,6 +54,15 @@ class MixpanelAnalytics {
   /// Reference to the timer set to upload events in batch
   Timer _batchTimer;
 
+  /// If true, sensitive information like deviceId or userId will be anonymized prior to being sent.
+  bool _shouldAnonymize;
+
+  /// As the fields to be anonymized will be the same with every event log, we can keep a cache of the values already anonymized.
+  Map<String, String> _anonymized;
+
+  /// Key used to anonymize the data if [shouldAnonymize] is true.
+  String _shaKey;
+
   // If this is not null, any error will be sent to this function, otherwise `debugPrint` will be used.
   void Function(Object error) _onError;
 
@@ -95,11 +105,15 @@ class MixpanelAnalytics {
   /// If you want events to be send in batch and also reliability to the requests use [MixpanelAnalytics.batch] instead.
   /// [token] is the Mixpanel token associated with your project.
   /// [userId$] is a stream which contains the value of the userId that will be used to identify the events for a user.
+  /// [shouldAnonymize] will anonymize the sensitive information (userId) sent to mixpanel.
+  /// [shaKey] the key used to anonymize the data, will be 'mixpanel' by default.
   /// [verbose] true will provide a detailed error cause in case the request is not successful.
   /// [onError] is a callback function that will be executed in case there is an error, otherwise `debugPrint` will be used.
   MixpanelAnalytics({
     @required String token,
     @required Stream<String> userId$,
+    bool shouldAnonymize,
+    String shaKey,
     bool verbose,
     Function onError,
   }) {
@@ -107,6 +121,8 @@ class MixpanelAnalytics {
     _userId$ = userId$;
     _verbose = verbose;
     _onError = onError;
+    _shouldAnonymize = shouldAnonymize ?? false;
+    _shaKey = shaKey ?? 'mixpanel';
 
     _userId$?.listen((id) => _userId = id);
   }
@@ -116,12 +132,16 @@ class MixpanelAnalytics {
   /// [token] is the Mixpanel token associated with your project.
   /// [userId$] is a stream which contains the value of the userId that will be used to identify the events for a user.
   /// [uploadInterval] is the interval used to batch the events.
+  /// [shouldAnonymize] will anonymize the sensitive information (userId) sent to mixpanel.
+  /// [shaKey] the key used to anonymize the data, will be 'mixpanel' by default.
   /// [verbose] true will provide a detailed error cause in case the request is not successful.
   /// [onError] is a callback function that will be executed in case there is an error, otherwise `debugPrint` will be used.
   MixpanelAnalytics.batch({
     @required String token,
     @required Stream<String> userId$,
     @required Duration uploadInterval,
+    bool shouldAnonymize,
+    String shaKey,
     bool verbose,
     Function onError,
   }) {
@@ -129,6 +149,9 @@ class MixpanelAnalytics {
     _userId$ = userId$;
     _verbose = verbose;
     _uploadInterval = uploadInterval;
+    _shouldAnonymize = shouldAnonymize ?? false;
+    _shaKey = shaKey ?? 'mixpanel';
+
     _onError = onError;
 
     _batchTimer = Timer.periodic(_uploadInterval, (_) => _uploadQueuedEvents());
@@ -272,7 +295,9 @@ class MixpanelAnalytics {
       ...props,
       'token': _token,
       'time': time.millisecondsSinceEpoch,
-      'distinct_id': _userId ?? 'Unknown'
+      'distinct_id': _userId == null
+          ? 'Unknown'
+          : _shouldAnonymize ? _anonymize('userId', _userId) : _userId
     };
     if (ip != null) {
       properties = {...properties, 'ip': ip};
@@ -296,7 +321,9 @@ class MixpanelAnalytics {
       updateOperations[operation]: value,
       '\$token': _token,
       '\$time': time.millisecondsSinceEpoch,
-      '\$distinct_id': _userId ?? 'Unknown'
+      '\$distinct_id': _userId == null
+          ? 'Unknown'
+          : _shouldAnonymize ? _anonymize('userId', _userId) : _userId
     };
     if (ip != null) {
       data = {...data, '\$ip': ip};
@@ -386,5 +413,16 @@ class MixpanelAnalytics {
     } else {
       debugPrint(message);
     }
+  }
+
+  String _anonymize(String field, String value) {
+    _anonymized ??= {};
+    if (_anonymized[field] == null) {
+      var key = utf8.encode(_shaKey);
+      var hmacSha256 = Hmac(sha256, key);
+      var bytes = utf8.encode(value);
+      _anonymized[field] = hmacSha256.convert(bytes).toString();
+    }
+    return _anonymized[field];
   }
 }
