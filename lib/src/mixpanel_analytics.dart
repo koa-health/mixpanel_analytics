@@ -299,9 +299,9 @@ class MixpanelAnalytics {
       ...props,
       'token': _token,
       'time': time.millisecondsSinceEpoch,
-      'distinct_id': _userId == null
+      'distinct_id': props["distinct_id"] == null ? _userId == null
           ? 'Unknown'
-          : _shouldAnonymize ? _anonymize('userId', _userId) : _userId
+          : _shouldAnonymize ? _anonymize('userId', _userId) : _userId : props["distinct_id"]
     };
     if (ip != null) {
       properties = {...properties, 'ip': ip};
