@@ -325,9 +325,9 @@ class MixpanelAnalytics {
       updateOperations[operation]: value,
       '\$token': _token,
       '\$time': time.millisecondsSinceEpoch,
-      '\$distinct_id': _userId == null
+      '\$distinct_id': value["distinct_id"] == null ? _userId == null
           ? 'Unknown'
-          : _shouldAnonymize ? _anonymize('userId', _userId) : _userId
+          : _shouldAnonymize ? _anonymize('userId', _userId) : _userId : value["distinct_id"]
     };
     if (ip != null) {
       data = {...data, '\$ip': ip};
