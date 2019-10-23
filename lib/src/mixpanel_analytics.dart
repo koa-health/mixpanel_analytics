@@ -31,30 +31,33 @@ class MixpanelAnalytics {
     MixpanelUpdateOperations.$delete: '\$delete',
   };
 
-  // The Mixpanel token associated with your project.
+  /// The Mixpanel token associated with your project.
   String _token;
 
-  // If present and equal to true, more detailed information will be printed on error.
+  /// If present and equal to true, more detailed information will be printed on error.
   bool _verbose;
 
   /// If present and equal to true, the geolocation data (e.g. city & country)
   /// will be included and inferred from client's IP address.
   bool _useIp;
 
-  // In case we use [MixpanelAnalytics.batch()] we will send analytics every [uploadInterval]
-  // Will be zero by default
+  /// In case we use [MixpanelAnalytics.batch()] we will send analytics every [uploadInterval]
+  /// Will be zero by default
   Duration _uploadInterval = Duration.zero;
 
-  // In case we use [MixpanelAnalytics.batch()] we need to provide a storage provider
-  // This will be used to save the events not sent
+  /// In case we use [MixpanelAnalytics.batch()] we need to provide a storage provider
+  /// This will be used to save the events not sent
   @visibleForTesting
   SharedPreferences prefs;
 
-  // If exists, will be sent in the event, otherwise anonymousId will be used.
+  /// If exists, will be sent in the event, otherwise anonymousId will be used.
   Stream<String> _userId$;
 
-  // Stores the value of the userId
+  /// Stores the value of the userId
   String _userId;
+
+  /// Sets the value of the userId.
+  set userId(String id) => _userId = id;
 
   /// Reference to the timer set to upload events in batch
   Timer _batchTimer;
@@ -68,17 +71,17 @@ class MixpanelAnalytics {
   /// Function used to anonymize the data.
   ShaFn _shaFn;
 
-  // If this is not null, any error will be sent to this function, otherwise `debugPrint` will be used.
+  /// If this is not null, any error will be sent to this function, otherwise `debugPrint` will be used.
   void Function(Object error) _onError;
 
-  // Queued events used when these are sent in batch.
+  /// Queued events used when these are sent in batch.
   final Map<String, dynamic> _queuedEvents = {'track': [], 'engage': []};
 
   List<dynamic> get _trackEvents => _queuedEvents['track'];
 
   List<dynamic> get _engageEvents => _queuedEvents['engage'];
 
-  // This is false when start and true once the events are restored from storage.
+  /// This is false when start and true once the events are restored from storage.
   bool _isQueuedEventsReadFromStorage = false;
 
   static const int maxEventsInBatchRequest = 50;
@@ -120,7 +123,7 @@ class MixpanelAnalytics {
   /// [onError] is a callback function that will be executed in case there is an error, otherwise `debugPrint` will be used.
   MixpanelAnalytics({
     @required String token,
-    @required Stream<String> userId$,
+    Stream<String> userId$,
     bool shouldAnonymize,
     ShaFn shaFn,
     bool verbose,
@@ -134,7 +137,6 @@ class MixpanelAnalytics {
     _onError = onError;
     _shouldAnonymize = shouldAnonymize ?? false;
     _shaFn = shaFn ?? _defaultShaFn;
-
     _userId$?.listen((id) => _userId = id);
   }
 
@@ -150,8 +152,8 @@ class MixpanelAnalytics {
   /// [onError] is a callback function that will be executed in case there is an error, otherwise `debugPrint` will be used.
   MixpanelAnalytics.batch({
     @required String token,
-    @required Stream<String> userId$,
     @required Duration uploadInterval,
+    Stream<String> userId$,
     bool shouldAnonymize,
     ShaFn shaFn,
     bool verbose,
@@ -165,11 +167,8 @@ class MixpanelAnalytics {
     _uploadInterval = uploadInterval;
     _shouldAnonymize = shouldAnonymize ?? false;
     _shaFn = shaFn ?? _defaultShaFn;
-
     _onError = onError;
-
     _batchTimer = Timer.periodic(_uploadInterval, (_) => _uploadQueuedEvents());
-
     _userId$?.listen((id) => _userId = id);
   }
 
@@ -257,8 +256,8 @@ class MixpanelAnalytics {
     return _sendEngageEvent(base64Event);
   }
 
-  // Reads queued events from the storage when we are in batch mode.
-  // We do this in case the app was closed with events pending to be sent.
+  /// Reads queued events from the storage when we are in batch mode.
+  /// We do this in case the app was closed with events pending to be sent.
   Future<void> _restoreQueuedEventsFromStorage() async {
     prefs ??= await SharedPreferences.getInstance();
     var encoded = prefs.getString(_prefsKey);
@@ -268,7 +267,7 @@ class MixpanelAnalytics {
     }
   }
 
-  // If we are in batch mode we save all events in storage in case the app is closed.
+  /// If we are in batch mode we save all events in storage in case the app is closed.
   Future<bool> _saveQueuedEventsToLocalStorage() async {
     prefs ??= await SharedPreferences.getInstance();
     var encoded = json.encode(_queuedEvents);
@@ -279,19 +278,19 @@ class MixpanelAnalytics {
     return result;
   }
 
-  // Tries to send all events pending to be send.
-  // TODO if error when sending, send events in isolation identify the incorrect message
+  /// Tries to send all events pending to be send.
+  /// TODO if error when sending, send events in isolation identify the incorrect message
   Future<void> _uploadQueuedEvents() async {
     await _uploadEvents(_trackEvents, _sendTrackBatch);
     await _uploadEvents(_engageEvents, _sendEngageBatch);
     await _saveQueuedEventsToLocalStorage();
   }
 
-  // As the API for Mixpanel only allows 50 events per batch, we need to restrict the events sent on each request.
+  /// As the API for Mixpanel only allows 50 events per batch, we need to restrict the events sent on each request.
   int _getMaximumRange(int length) =>
       length < maxEventsInBatchRequest ? length : maxEventsInBatchRequest;
 
-  // Uploads all pending events in batches of maximum [maxEventsInBatchRequest].
+  /// Uploads all pending events in batches of maximum [maxEventsInBatchRequest].
   Future<void> _uploadEvents(List<dynamic> events, Function sendFn) async {
     List<dynamic> unsentEvents = [];
     while (events.isNotEmpty) {
@@ -309,7 +308,7 @@ class MixpanelAnalytics {
     }
   }
 
-  // The track event is coded into base64 with the required properties.
+  /// The track event is coded into base64 with the required properties.
   Map<String, dynamic> _createTrackEvent(
     String event,
     Map<String, dynamic> props,
@@ -339,7 +338,7 @@ class MixpanelAnalytics {
     return data;
   }
 
-  // The engage event is coded into base64 with the required properties.
+  /// The engage event is coded into base64 with the required properties.
   Map<String, dynamic> _createEngageEvent(
       MixpanelUpdateOperations operation,
       Map<String, dynamic> value,
@@ -371,7 +370,7 @@ class MixpanelAnalytics {
     return data;
   }
 
-  // Event data has to be sent with base64 encoding.
+  /// Event data has to be sent with base64 encoding.
   String _base64Encoder(Object event) {
     var str = json.encode(event);
     var bytes = utf8.encode(str);
@@ -383,7 +382,7 @@ class MixpanelAnalytics {
 
   Future<bool> _sendEngageEvent(String event) => _sendEvent(event, 'engage');
 
-  // Sends the event to the mixpanel API endpoint.
+  /// Sends the event to the mixpanel API endpoint.
   Future<bool> _sendEvent(String event, String op) async {
     var url = '$baseApi/$op/?data=$event&verbose=${_verbose ? 1 : 0}'
         '&ip=${_useIp ? 1 : 0}';
@@ -403,7 +402,7 @@ class MixpanelAnalytics {
 
   Future<bool> _sendEngageBatch(String event) => _sendBatch(event, 'engage');
 
-  // Sends the batch of events to the mixpanel API endpoint.
+  /// Sends the batch of events to the mixpanel API endpoint.
   Future<bool> _sendBatch(String batch, String op) async {
     var url = '$baseApi/$op/?verbose=${_verbose ? 1 : 0}&ip=${_useIp ? 1 : 0}';
     try {
@@ -420,8 +419,8 @@ class MixpanelAnalytics {
     }
   }
 
-  // Depending on the value of [verbose], this will validate the body and handle the error.
-  // Check [mixpanel documentation](https://developer.mixpanel.com/docs/http) for more information on `verbose`.
+  /// Depending on the value of [verbose], this will validate the body and handle the error.
+  /// Check [mixpanel documentation](https://developer.mixpanel.com/docs/http) for more information on `verbose`.
   bool _validateResponseBody(String url, String body) {
     if (_verbose) {
       var decodedBody = json.decode(body);
@@ -441,7 +440,7 @@ class MixpanelAnalytics {
     return true;
   }
 
-  // Anonymizes the field but also saves it in a local cache.
+  /// Anonymizes the field but also saves it in a local cache.
   String _anonymize(String field, String value) {
     _anonymized ??= {};
     if (_anonymized[field] == null) {
@@ -450,7 +449,7 @@ class MixpanelAnalytics {
     return _anonymized[field];
   }
 
-  // Proxies the error to the callback function provided or to standard `debugPrint`.
+  /// Proxies the error to the callback function provided or to standard `debugPrint`.
   void _onErrorHandler(dynamic error, String message) {
     if (_onError != null) {
       _onError(error ?? message);
