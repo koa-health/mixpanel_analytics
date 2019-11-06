@@ -72,7 +72,7 @@ class MixpanelAnalytics {
 
   List<dynamic> get _trackEvents => _queuedEvents['track'];
 
-  List<dynamic> get _engageEvents => _queuedEvents['track'];
+  List<dynamic> get _engageEvents => _queuedEvents['engage'];
 
   // This is false when start and true once the events are restored from storage.
   bool _isQueuedEventsReadFromStorage = false;
@@ -299,9 +299,11 @@ class MixpanelAnalytics {
       ...props,
       'token': _token,
       'time': time.millisecondsSinceEpoch,
-      'distinct_id': props['distinct_id'] == null ? _userId == null
-          ? 'Unknown'
-          : _shouldAnonymize ? _anonymize('userId', _userId) : _userId : props['distinct_id']
+      'distinct_id': props['distinct_id'] == null
+          ? _userId == null
+              ? 'Unknown'
+              : _shouldAnonymize ? _anonymize('userId', _userId) : _userId
+          : props['distinct_id']
     };
     if (ip != null) {
       properties = {...properties, 'ip': ip};
@@ -325,9 +327,11 @@ class MixpanelAnalytics {
       updateOperations[operation]: value,
       '\$token': _token,
       '\$time': time.millisecondsSinceEpoch,
-      '\$distinct_id': value['distinct_id'] == null ? _userId == null
-          ? 'Unknown'
-          : _shouldAnonymize ? _anonymize('userId', _userId) : _userId : value['distinct_id']
+      '\$distinct_id': value['distinct_id'] == null
+          ? _userId == null
+              ? 'Unknown'
+              : _shouldAnonymize ? _anonymize('userId', _userId) : _userId
+          : value['distinct_id']
     };
     if (ip != null) {
       data = {...data, '\$ip': ip};
