@@ -1,3 +1,7 @@
+## [1.2.1] - 2019-11-07
+
+- Fix an error when sending batch requests for engage.
+
 ## [1.2.0] - 2019-09-10
 
 - Allow encoding function to be passed.
