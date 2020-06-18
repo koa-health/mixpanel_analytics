@@ -82,7 +82,7 @@ class MixpanelAnalytics {
   /// We can inject the client required, useful for testing
   Client http = Client();
 
-  static const String baseApi = 'api.mixpanel.com';
+  static const String baseApi = 'https://api.mixpanel.com';
 
   static const _prefsKey = 'mixpanel.analytics';
 
@@ -367,9 +367,8 @@ class MixpanelAnalytics {
   Future<bool> _sendEvent(String event, String op) async {
     var url = '$baseApi/$op/?data=$event&verbose=${_verbose ? 1 : 0}';
     if (_proxyUrl != null) {
+      url = url.replaceFirst('https://', '');
       url = '$_proxyUrl/$url';
-    } else {
-      url = 'https://$url';
     }
 
     try {
@@ -392,9 +391,8 @@ class MixpanelAnalytics {
   Future<bool> _sendBatch(String batch, String op) async {
     var url = '$baseApi/$op/?verbose=${_verbose ? 1 : 0}';
     if (_proxyUrl != null) {
+      url = url.replaceFirst('https://', '');
       url = '$_proxyUrl/$url';
-    } else {
-      url = 'https://$url';
     }
 
     try {
