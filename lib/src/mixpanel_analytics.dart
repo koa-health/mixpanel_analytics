@@ -82,7 +82,7 @@ class MixpanelAnalytics {
   /// We can inject the client required, useful for testing
   Client http = Client();
 
-  static const String baseApi = 'https://api.mixpanel.com';
+  static const String baseApi = 'api.mixpanel.com';
 
   static const _prefsKey = 'mixpanel.analytics';
 
@@ -94,6 +94,9 @@ class MixpanelAnalytics {
 
   /// Default sha function to be used when none is provided.
   static String _defaultShaFn(value) => value;
+
+  /// Proxy url to by pass CORs in flutter web
+  String _proxyUrl;
 
   /// Used in case we want to remove the timer to send batched events.
   void dispose() {
@@ -113,14 +116,14 @@ class MixpanelAnalytics {
   /// [shaFn] function used to anonymize the data.
   /// [verbose] true will provide a detailed error cause in case the request is not successful.
   /// [onError] is a callback function that will be executed in case there is an error, otherwise `debugPrint` will be used.
-  MixpanelAnalytics({
-    @required String token,
-    @required Stream<String> userId$,
-    bool shouldAnonymize,
-    ShaFn shaFn,
-    bool verbose,
-    Function onError,
-  }) {
+  MixpanelAnalytics(
+      {@required String token,
+      @required Stream<String> userId$,
+      bool shouldAnonymize,
+      ShaFn shaFn,
+      bool verbose,
+      Function onError,
+      String proxyUrl}) {
     _token = token;
     _userId$ = userId$;
     _verbose = verbose;
@@ -129,6 +132,7 @@ class MixpanelAnalytics {
     _shaFn = shaFn ?? _defaultShaFn;
 
     _userId$?.listen((id) => _userId = id);
+    _proxyUrl = proxyUrl;
   }
 
   /// Provides an instance of this class.
@@ -148,6 +152,7 @@ class MixpanelAnalytics {
     ShaFn shaFn,
     bool verbose,
     Function onError,
+    String proxyUrl,
   }) {
     _token = token;
     _userId$ = userId$;
@@ -161,6 +166,7 @@ class MixpanelAnalytics {
     _batchTimer = Timer.periodic(_uploadInterval, (_) => _uploadQueuedEvents());
 
     _userId$?.listen((id) => _userId = id);
+    _proxyUrl = proxyUrl;
   }
 
   /// Sends a request to track a specific event.
@@ -360,6 +366,12 @@ class MixpanelAnalytics {
   // Sends the event to the mixpanel API endpoint.
   Future<bool> _sendEvent(String event, String op) async {
     var url = '$baseApi/$op/?data=$event&verbose=${_verbose ? 1 : 0}';
+    if (_proxyUrl != null) {
+      url = '$_proxyUrl/$url';
+    } else {
+      url = 'https://$url';
+    }
+
     try {
       var response = await http.get(url, headers: {
         'Content-type': 'application/json',
@@ -379,6 +391,12 @@ class MixpanelAnalytics {
   // Sends the batch of events to the mixpanel API endpoint.
   Future<bool> _sendBatch(String batch, String op) async {
     var url = '$baseApi/$op/?verbose=${_verbose ? 1 : 0}';
+    if (_proxyUrl != null) {
+      url = '$_proxyUrl/$url';
+    } else {
+      url = 'https://$url';
+    }
+
     try {
       var response = await http.post(url, headers: {
         'Content-type': 'application/x-www-form-urlencoded',
