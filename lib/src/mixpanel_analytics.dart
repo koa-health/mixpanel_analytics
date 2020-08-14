@@ -378,7 +378,7 @@ class MixpanelAnalytics {
 
   // Sends the batch of events to the mixpanel API endpoint.
   Future<bool> _sendBatch(String batch, String op) async {
-    var url = '$baseApi/$op/?verbose=${_verbose ? 1 : 0}';
+    var url = '$baseApi/$op/?verbose=${_verbose ? 1 : 0}&ip=1';
     try {
       var response = await http.post(url, headers: {
         'Content-type': 'application/x-www-form-urlencoded',
