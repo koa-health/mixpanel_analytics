@@ -129,8 +129,8 @@ class MixpanelAnalytics {
   }) {
     _token = token;
     _userId$ = userId$;
-    _verbose = verbose;
-    _ip = ip;
+    _verbose = verbose ?? false;
+    _ip = ip ?? false;
     _onError = onError;
     _shouldAnonymize = shouldAnonymize ?? false;
     _shaFn = shaFn ?? _defaultShaFn;
@@ -160,8 +160,8 @@ class MixpanelAnalytics {
   }) {
     _token = token;
     _userId$ = userId$;
-    _verbose = verbose;
-    _ip = ip;
+    _verbose = verbose ?? false;
+    _ip = ip ?? false;
     _uploadInterval = uploadInterval;
     _shouldAnonymize = shouldAnonymize ?? false;
     _shaFn = shaFn ?? _defaultShaFn;
