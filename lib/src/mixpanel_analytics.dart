@@ -37,6 +37,10 @@ class MixpanelAnalytics {
   // If present and equal to true, more detailed information will be printed on error.
   bool _verbose;
 
+  /// If present and equal to true, the geolocation data (e.g. city & country)
+  /// will be included and inferred from client's IP address.
+  bool _ip;
+
   // In case we use [MixpanelAnalytics.batch()] we will send analytics every [uploadInterval]
   // Will be zero by default
   Duration _uploadInterval = Duration.zero;
@@ -112,6 +116,7 @@ class MixpanelAnalytics {
   /// [shouldAnonymize] will anonymize the sensitive information (userId) sent to mixpanel.
   /// [shaFn] function used to anonymize the data.
   /// [verbose] true will provide a detailed error cause in case the request is not successful.
+  /// [ip] is the `ip` property as explained in [mixpanel documentation](https://developer.mixpanel.com/docs/http)
   /// [onError] is a callback function that will be executed in case there is an error, otherwise `debugPrint` will be used.
   MixpanelAnalytics({
     @required String token,
@@ -119,11 +124,13 @@ class MixpanelAnalytics {
     bool shouldAnonymize,
     ShaFn shaFn,
     bool verbose,
+    bool ip,
     Function onError,
   }) {
     _token = token;
     _userId$ = userId$;
     _verbose = verbose;
+    _ip = ip;
     _onError = onError;
     _shouldAnonymize = shouldAnonymize ?? false;
     _shaFn = shaFn ?? _defaultShaFn;
@@ -139,6 +146,7 @@ class MixpanelAnalytics {
   /// [shouldAnonymize] will anonymize the sensitive information (userId) sent to mixpanel.
   /// [shaFn] function used to anonymize the data.
   /// [verbose] true will provide a detailed error cause in case the request is not successful.
+  /// [ip] is the `ip` property as explained in [mixpanel documentation](https://developer.mixpanel.com/docs/http)
   /// [onError] is a callback function that will be executed in case there is an error, otherwise `debugPrint` will be used.
   MixpanelAnalytics.batch({
     @required String token,
@@ -147,11 +155,13 @@ class MixpanelAnalytics {
     bool shouldAnonymize,
     ShaFn shaFn,
     bool verbose,
+    bool ip,
     Function onError,
   }) {
     _token = token;
     _userId$ = userId$;
     _verbose = verbose;
+    _ip = ip;
     _uploadInterval = uploadInterval;
     _shouldAnonymize = shouldAnonymize ?? false;
     _shaFn = shaFn ?? _defaultShaFn;
@@ -168,7 +178,6 @@ class MixpanelAnalytics {
   /// [event] will be the name of the event.
   /// [properties] is a map with the properties to be sent.
   /// [time] is the date that will be added in the event. If not provided, current time will be used.
-  /// [ip] is the `ip` property as explained in [mixpanel documentation](https://developer.mixpanel.com/docs/http)
   /// [insertId] is the `$insert_id` property as explained in [mixpanel documentation](https://developer.mixpanel.com/docs/http)
   Future<bool> track({
     @required String event,
@@ -201,7 +210,6 @@ class MixpanelAnalytics {
   /// [operation] is the operation update as per [MixpanelUpdateOperations].
   /// [value] is a map with the properties to be sent.
   /// [time] is the date that will be added in the event. If not provided, current time will be used.
-  /// [ip] is the `ip` property as explained in [mixpanel documentation](https://developer.mixpanel.com/docs/http)
   /// [ignoreTime] is the `$ignore_time` property as explained in [mixpanel documentation](https://developer.mixpanel.com/docs/http)
   /// [ignoreAlias] is the `$ignore_alias` property as explained in [mixpanel documentation](https://developer.mixpanel.com/docs/http)
   Future<bool> engage({
@@ -359,7 +367,8 @@ class MixpanelAnalytics {
 
   // Sends the event to the mixpanel API endpoint.
   Future<bool> _sendEvent(String event, String op) async {
-    var url = '$baseApi/$op/?data=$event&verbose=${_verbose ? 1 : 0}';
+    var url = '$baseApi/$op/?data=$event&verbose=${_verbose ? 1 : 0}'
+        '&ip=${_ip ? 1 : 0}';
     try {
       var response = await http.get(url, headers: {
         'Content-type': 'application/json',
@@ -378,7 +387,7 @@ class MixpanelAnalytics {
 
   // Sends the batch of events to the mixpanel API endpoint.
   Future<bool> _sendBatch(String batch, String op) async {
-    var url = '$baseApi/$op/?verbose=${_verbose ? 1 : 0}&ip=1';
+    var url = '$baseApi/$op/?verbose=${_verbose ? 1 : 0}&ip=${_ip ? 1 : 0}';
     try {
       var response = await http.post(url, headers: {
         'Content-type': 'application/x-www-form-urlencoded',
