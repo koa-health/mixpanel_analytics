@@ -183,7 +183,6 @@ class MixpanelAnalytics {
     @required String event,
     @required Map<String, dynamic> properties,
     DateTime time,
-    String ip,
     String insertId,
   }) async {
     if (event == null) {
@@ -193,8 +192,8 @@ class MixpanelAnalytics {
       throw ArgumentError.notNull('properties');
     }
 
-    var trackEvent = _createTrackEvent(
-        event, properties, time ?? DateTime.now(), ip, insertId);
+    var trackEvent =
+        _createTrackEvent(event, properties, time ?? DateTime.now(), insertId);
 
     if (isBatchMode) {
       _trackEvents.add(trackEvent);
@@ -216,7 +215,6 @@ class MixpanelAnalytics {
     @required MixpanelUpdateOperations operation,
     @required Map<String, dynamic> value,
     DateTime time,
-    String ip,
     bool ignoreTime,
     bool ignoreAlias,
   }) async {
@@ -228,7 +226,7 @@ class MixpanelAnalytics {
     }
 
     var engageEvent = _createEngageEvent(
-        operation, value, time ?? DateTime.now(), ip, ignoreTime, ignoreAlias);
+        operation, value, time ?? DateTime.now(), ignoreTime, ignoreAlias);
 
     if (isBatchMode) {
       _engageEvents.add(engageEvent);
@@ -300,7 +298,6 @@ class MixpanelAnalytics {
     String event,
     Map<String, dynamic> props,
     DateTime time,
-    String ip,
     String insertId,
   ) {
     var properties = {
@@ -313,9 +310,6 @@ class MixpanelAnalytics {
               : _shouldAnonymize ? _anonymize('userId', _userId) : _userId
           : props['distinct_id']
     };
-    if (ip != null) {
-      properties = {...properties, 'ip': ip};
-    }
     if (insertId != null) {
       properties = {...properties, '\$insert_id': insertId};
     }
@@ -328,7 +322,6 @@ class MixpanelAnalytics {
       MixpanelUpdateOperations operation,
       Map<String, dynamic> value,
       DateTime time,
-      String ip,
       bool ignoreTime,
       bool ignoreAlias) {
     var data = {
@@ -341,9 +334,6 @@ class MixpanelAnalytics {
               : _shouldAnonymize ? _anonymize('userId', _userId) : _userId
           : value['distinct_id']
     };
-    if (ip != null) {
-      data = {...data, '\$ip': ip};
-    }
     if (ignoreTime != null) {
       data = {...data, '\$ignore_time': ignoreTime};
     }
