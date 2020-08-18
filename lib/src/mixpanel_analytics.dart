@@ -37,6 +37,10 @@ class MixpanelAnalytics {
   // If present and equal to true, more detailed information will be printed on error.
   bool _verbose;
 
+  /// If present and equal to true, the geolocation data (e.g. city & country)
+  /// will be included and inferred from client's IP address.
+  bool _useIp;
+
   // In case we use [MixpanelAnalytics.batch()] we will send analytics every [uploadInterval]
   // Will be zero by default
   Duration _uploadInterval = Duration.zero;
@@ -112,6 +116,7 @@ class MixpanelAnalytics {
   /// [shouldAnonymize] will anonymize the sensitive information (userId) sent to mixpanel.
   /// [shaFn] function used to anonymize the data.
   /// [verbose] true will provide a detailed error cause in case the request is not successful.
+  /// [useIp] is the `ip` property as explained in [mixpanel documentation](https://developer.mixpanel.com/docs/http)
   /// [onError] is a callback function that will be executed in case there is an error, otherwise `debugPrint` will be used.
   MixpanelAnalytics({
     @required String token,
@@ -119,11 +124,13 @@ class MixpanelAnalytics {
     bool shouldAnonymize,
     ShaFn shaFn,
     bool verbose,
+    bool useIp,
     Function onError,
   }) {
     _token = token;
     _userId$ = userId$;
-    _verbose = verbose;
+    _verbose = verbose ?? false;
+    _useIp = useIp ?? false;
     _onError = onError;
     _shouldAnonymize = shouldAnonymize ?? false;
     _shaFn = shaFn ?? _defaultShaFn;
@@ -139,6 +146,7 @@ class MixpanelAnalytics {
   /// [shouldAnonymize] will anonymize the sensitive information (userId) sent to mixpanel.
   /// [shaFn] function used to anonymize the data.
   /// [verbose] true will provide a detailed error cause in case the request is not successful.
+  /// [ip] is the `ip` property as explained in [mixpanel documentation](https://developer.mixpanel.com/docs/http)
   /// [onError] is a callback function that will be executed in case there is an error, otherwise `debugPrint` will be used.
   MixpanelAnalytics.batch({
     @required String token,
@@ -147,11 +155,13 @@ class MixpanelAnalytics {
     bool shouldAnonymize,
     ShaFn shaFn,
     bool verbose,
+    bool ip,
     Function onError,
   }) {
     _token = token;
     _userId$ = userId$;
-    _verbose = verbose;
+    _verbose = verbose ?? false;
+    _useIp = ip ?? false;
     _uploadInterval = uploadInterval;
     _shouldAnonymize = shouldAnonymize ?? false;
     _shaFn = shaFn ?? _defaultShaFn;
@@ -359,7 +369,8 @@ class MixpanelAnalytics {
 
   // Sends the event to the mixpanel API endpoint.
   Future<bool> _sendEvent(String event, String op) async {
-    var url = '$baseApi/$op/?data=$event&verbose=${_verbose ? 1 : 0}';
+    var url = '$baseApi/$op/?data=$event&verbose=${_verbose ? 1 : 0}'
+        '&ip=${_useIp ? 1 : 0}';
     try {
       var response = await http.get(url, headers: {
         'Content-type': 'application/json',
@@ -378,7 +389,7 @@ class MixpanelAnalytics {
 
   // Sends the batch of events to the mixpanel API endpoint.
   Future<bool> _sendBatch(String batch, String op) async {
-    var url = '$baseApi/$op/?verbose=${_verbose ? 1 : 0}';
+    var url = '$baseApi/$op/?verbose=${_verbose ? 1 : 0}&ip=${_useIp ? 1 : 0}';
     try {
       var response = await http.post(url, headers: {
         'Content-type': 'application/x-www-form-urlencoded',

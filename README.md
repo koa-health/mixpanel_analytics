@@ -18,6 +18,7 @@ MixpanelAnalytics(
   token: 'XXXXXXXXX',
   userId$: _user$.stream,
   verbose: true,
+  ip: true,
   shouldAnonymize: true,
   shaFn: (value) => value,
   onError: (e) => setState(() {
