@@ -66,7 +66,7 @@ void main() {
           token: mixpanelToken,
           userId$: userId$.stream,
           verbose: false,
-          ip: false,
+          useIp: false,
           onError: (_) {})
         ..http = http;
       userId$.add(userId);

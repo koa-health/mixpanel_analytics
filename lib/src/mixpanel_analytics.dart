@@ -39,7 +39,7 @@ class MixpanelAnalytics {
 
   /// If present and equal to true, the geolocation data (e.g. city & country)
   /// will be included and inferred from client's IP address.
-  bool _ip;
+  bool _useIp;
 
   // In case we use [MixpanelAnalytics.batch()] we will send analytics every [uploadInterval]
   // Will be zero by default
@@ -116,7 +116,7 @@ class MixpanelAnalytics {
   /// [shouldAnonymize] will anonymize the sensitive information (userId) sent to mixpanel.
   /// [shaFn] function used to anonymize the data.
   /// [verbose] true will provide a detailed error cause in case the request is not successful.
-  /// [ip] is the `ip` property as explained in [mixpanel documentation](https://developer.mixpanel.com/docs/http)
+  /// [useIp] is the `ip` property as explained in [mixpanel documentation](https://developer.mixpanel.com/docs/http)
   /// [onError] is a callback function that will be executed in case there is an error, otherwise `debugPrint` will be used.
   MixpanelAnalytics({
     @required String token,
@@ -124,13 +124,13 @@ class MixpanelAnalytics {
     bool shouldAnonymize,
     ShaFn shaFn,
     bool verbose,
-    bool ip,
+    bool useIp,
     Function onError,
   }) {
     _token = token;
     _userId$ = userId$;
     _verbose = verbose ?? false;
-    _ip = ip ?? false;
+    _useIp = useIp ?? false;
     _onError = onError;
     _shouldAnonymize = shouldAnonymize ?? false;
     _shaFn = shaFn ?? _defaultShaFn;
@@ -161,7 +161,7 @@ class MixpanelAnalytics {
     _token = token;
     _userId$ = userId$;
     _verbose = verbose ?? false;
-    _ip = ip ?? false;
+    _useIp = ip ?? false;
     _uploadInterval = uploadInterval;
     _shouldAnonymize = shouldAnonymize ?? false;
     _shaFn = shaFn ?? _defaultShaFn;
@@ -178,11 +178,13 @@ class MixpanelAnalytics {
   /// [event] will be the name of the event.
   /// [properties] is a map with the properties to be sent.
   /// [time] is the date that will be added in the event. If not provided, current time will be used.
+  /// [ip] is the `ip` property as explained in [mixpanel documentation](https://developer.mixpanel.com/docs/http)
   /// [insertId] is the `$insert_id` property as explained in [mixpanel documentation](https://developer.mixpanel.com/docs/http)
   Future<bool> track({
     @required String event,
     @required Map<String, dynamic> properties,
     DateTime time,
+    String ip,
     String insertId,
   }) async {
     if (event == null) {
@@ -192,8 +194,8 @@ class MixpanelAnalytics {
       throw ArgumentError.notNull('properties');
     }
 
-    var trackEvent =
-        _createTrackEvent(event, properties, time ?? DateTime.now(), insertId);
+    var trackEvent = _createTrackEvent(
+        event, properties, time ?? DateTime.now(), ip, insertId);
 
     if (isBatchMode) {
       _trackEvents.add(trackEvent);
@@ -209,12 +211,14 @@ class MixpanelAnalytics {
   /// [operation] is the operation update as per [MixpanelUpdateOperations].
   /// [value] is a map with the properties to be sent.
   /// [time] is the date that will be added in the event. If not provided, current time will be used.
+  /// [ip] is the `ip` property as explained in [mixpanel documentation](https://developer.mixpanel.com/docs/http)
   /// [ignoreTime] is the `$ignore_time` property as explained in [mixpanel documentation](https://developer.mixpanel.com/docs/http)
   /// [ignoreAlias] is the `$ignore_alias` property as explained in [mixpanel documentation](https://developer.mixpanel.com/docs/http)
   Future<bool> engage({
     @required MixpanelUpdateOperations operation,
     @required Map<String, dynamic> value,
     DateTime time,
+    String ip,
     bool ignoreTime,
     bool ignoreAlias,
   }) async {
@@ -226,7 +230,7 @@ class MixpanelAnalytics {
     }
 
     var engageEvent = _createEngageEvent(
-        operation, value, time ?? DateTime.now(), ignoreTime, ignoreAlias);
+        operation, value, time ?? DateTime.now(), ip, ignoreTime, ignoreAlias);
 
     if (isBatchMode) {
       _engageEvents.add(engageEvent);
@@ -298,6 +302,7 @@ class MixpanelAnalytics {
     String event,
     Map<String, dynamic> props,
     DateTime time,
+    String ip,
     String insertId,
   ) {
     var properties = {
@@ -310,6 +315,9 @@ class MixpanelAnalytics {
               : _shouldAnonymize ? _anonymize('userId', _userId) : _userId
           : props['distinct_id']
     };
+    if (ip != null) {
+      properties = {...properties, 'ip': ip};
+    }
     if (insertId != null) {
       properties = {...properties, '\$insert_id': insertId};
     }
@@ -322,6 +330,7 @@ class MixpanelAnalytics {
       MixpanelUpdateOperations operation,
       Map<String, dynamic> value,
       DateTime time,
+      String ip,
       bool ignoreTime,
       bool ignoreAlias) {
     var data = {
@@ -334,6 +343,9 @@ class MixpanelAnalytics {
               : _shouldAnonymize ? _anonymize('userId', _userId) : _userId
           : value['distinct_id']
     };
+    if (ip != null) {
+      data = {...data, '\$ip': ip};
+    }
     if (ignoreTime != null) {
       data = {...data, '\$ignore_time': ignoreTime};
     }
@@ -358,7 +370,7 @@ class MixpanelAnalytics {
   // Sends the event to the mixpanel API endpoint.
   Future<bool> _sendEvent(String event, String op) async {
     var url = '$baseApi/$op/?data=$event&verbose=${_verbose ? 1 : 0}'
-        '&ip=${_ip ? 1 : 0}';
+        '&ip=${_useIp ? 1 : 0}';
     try {
       var response = await http.get(url, headers: {
         'Content-type': 'application/json',
@@ -377,7 +389,7 @@ class MixpanelAnalytics {
 
   // Sends the batch of events to the mixpanel API endpoint.
   Future<bool> _sendBatch(String batch, String op) async {
-    var url = '$baseApi/$op/?verbose=${_verbose ? 1 : 0}&ip=${_ip ? 1 : 0}';
+    var url = '$baseApi/$op/?verbose=${_verbose ? 1 : 0}&ip=${_useIp ? 1 : 0}';
     try {
       var response = await http.post(url, headers: {
         'Content-type': 'application/x-www-form-urlencoded',
