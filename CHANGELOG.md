@@ -1,3 +1,7 @@
+## [1.3.0] - 2020-08-19
+
+- Added `useIp` property.
+
 ## [1.2.1] - 2019-11-07
 
 - Fix an error when sending batch requests for engage.
