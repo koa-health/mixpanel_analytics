@@ -1,3 +1,7 @@
+## [1.3.1] - 2020-12-20
+
+- Fixes a bug that involved the stored in memory events when in batch mode to be lost.
+
 ## [1.3.0] - 2020-08-19
 
 - Added `useIp` property.
