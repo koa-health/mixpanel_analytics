@@ -198,8 +198,10 @@ class MixpanelAnalytics {
         event, properties, time ?? DateTime.now(), ip, insertId);
 
     if (isBatchMode) {
-      // TODO: this should be place within an init() along within the constructor. But that would be a breaking change.
-      // To be executed only the first time events are tried to send
+      // TODO: this should be place within an init() along within the constructor.
+      // This is not perfect, as we are waiting for the caller to send an event before sending the stored in memory.
+      // But doing it on an init() would be a breaking change.
+      // To be executed only the first time user tries to send an event
       if (!_isQueuedEventsReadFromStorage) {
         await _restoreQueuedEventsFromStorage();
         _isQueuedEventsReadFromStorage = true;
@@ -239,8 +241,10 @@ class MixpanelAnalytics {
         operation, value, time ?? DateTime.now(), ip, ignoreTime, ignoreAlias);
 
     if (isBatchMode) {
-      // TODO: this should be place within an init() along within the constructor. But that would be a breaking change.
-      // To be executed only the first time events are tried to send
+      // TODO: this should be place within an init() along within the constructor.
+      // This is not perfect, as we are waiting for the caller to send an event before sending the stored in memory.
+      // But doing it on an init() would be a breaking change.
+      // To be executed only the first time user tries to send an event
       if (!_isQueuedEventsReadFromStorage) {
         await _restoreQueuedEventsFromStorage();
         _isQueuedEventsReadFromStorage = true;
