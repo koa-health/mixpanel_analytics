@@ -229,7 +229,8 @@ void main() {
           expected);
     });
 
-    test('batch mode will send whatever is in shared preferences on start',
+    test(
+        'batch mode will send whatever is in shared preferences whenever an event is sent',
         () async {
       var events = {
         'track': [
@@ -254,6 +255,16 @@ void main() {
         ]
       };
 
+      var extraEvent = {
+        'event': 'random event',
+        'properties': {
+          'key': 'value3',
+          'token': 'some-mixpanel-token',
+          'time': 1561130182320,
+          'distinct_id': 'some-user-id'
+        }
+      };
+
       stubPrefsSetString('');
 
       stubPrefsGetString(json.encode(events));
@@ -262,8 +273,13 @@ void main() {
 
       verifyZeroInteractions(http);
 
+      await sut.track(
+          event: extraEvent['event'],
+          properties: extraEvent['properties'],
+          time: DateTime.fromMillisecondsSinceEpoch(1561130182320));
+
       var expected = {
-        'data': base64Encoder([...events['track']])
+        'data': base64Encoder([...events['track'], extraEvent])
       };
 
       await Future.delayed(Duration(seconds: uploadIntervalSeconds + 2), () {});

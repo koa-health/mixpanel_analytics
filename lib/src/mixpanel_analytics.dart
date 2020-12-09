@@ -198,6 +198,14 @@ class MixpanelAnalytics {
         event, properties, time ?? DateTime.now(), ip, insertId);
 
     if (isBatchMode) {
+      // TODO: this should be place within an init() along within the constructor.
+      // This is not perfect, as we are waiting for the caller to send an event before sending the stored in memory.
+      // But doing it on an init() would be a breaking change.
+      // To be executed only the first time user tries to send an event
+      if (!_isQueuedEventsReadFromStorage) {
+        await _restoreQueuedEventsFromStorage();
+        _isQueuedEventsReadFromStorage = true;
+      }
       _trackEvents.add(trackEvent);
       return _saveQueuedEventsToLocalStorage();
     }
@@ -233,6 +241,14 @@ class MixpanelAnalytics {
         operation, value, time ?? DateTime.now(), ip, ignoreTime, ignoreAlias);
 
     if (isBatchMode) {
+      // TODO: this should be place within an init() along within the constructor.
+      // This is not perfect, as we are waiting for the caller to send an event before sending the stored in memory.
+      // But doing it on an init() would be a breaking change.
+      // To be executed only the first time user tries to send an event
+      if (!_isQueuedEventsReadFromStorage) {
+        await _restoreQueuedEventsFromStorage();
+        _isQueuedEventsReadFromStorage = true;
+      }
       _engageEvents.add(engageEvent);
       return _saveQueuedEventsToLocalStorage();
     }
@@ -266,10 +282,6 @@ class MixpanelAnalytics {
   // Tries to send all events pending to be send.
   // TODO if error when sending, send events in isolation identify the incorrect message
   Future<void> _uploadQueuedEvents() async {
-    if (!_isQueuedEventsReadFromStorage) {
-      await _restoreQueuedEventsFromStorage();
-      _isQueuedEventsReadFromStorage = true;
-    }
     await _uploadEvents(_trackEvents, _sendTrackBatch);
     await _uploadEvents(_engageEvents, _sendEngageBatch);
     await _saveQueuedEventsToLocalStorage();
@@ -312,7 +324,9 @@ class MixpanelAnalytics {
       'distinct_id': props['distinct_id'] == null
           ? _userId == null
               ? 'Unknown'
-              : _shouldAnonymize ? _anonymize('userId', _userId) : _userId
+              : _shouldAnonymize
+                  ? _anonymize('userId', _userId)
+                  : _userId
           : props['distinct_id']
     };
     if (ip != null) {
@@ -340,7 +354,9 @@ class MixpanelAnalytics {
       '\$distinct_id': value['distinct_id'] == null
           ? _userId == null
               ? 'Unknown'
-              : _shouldAnonymize ? _anonymize('userId', _userId) : _userId
+              : _shouldAnonymize
+                  ? _anonymize('userId', _userId)
+                  : _userId
           : value['distinct_id']
     };
     if (ip != null) {
