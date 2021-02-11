@@ -102,6 +102,9 @@ class MixpanelAnalytics {
   /// Default sha function to be used when none is provided.
   static String _defaultShaFn(value) => value;
 
+  /// Proxy url to by pass CORs in flutter web
+  String _proxyUrl;
+
   /// Used in case we want to remove the timer to send batched events.
   void dispose() {
     if (_batchTimer != null) {
@@ -129,6 +132,7 @@ class MixpanelAnalytics {
     bool verbose,
     bool useIp,
     Function onError,
+    String proxyUrl
   }) {
     _token = token;
     _userId$ = userId$;
@@ -138,6 +142,7 @@ class MixpanelAnalytics {
     _shouldAnonymize = shouldAnonymize ?? false;
     _shaFn = shaFn ?? _defaultShaFn;
     _userId$?.listen((id) => _userId = id);
+    _proxyUrl = proxyUrl;
   }
 
   /// Provides an instance of this class.
@@ -159,6 +164,7 @@ class MixpanelAnalytics {
     bool verbose,
     bool ip,
     Function onError,
+    String proxyUrl,
   }) {
     _token = token;
     _userId$ = userId$;
@@ -170,6 +176,7 @@ class MixpanelAnalytics {
     _onError = onError;
     _batchTimer = Timer.periodic(_uploadInterval, (_) => _uploadQueuedEvents());
     _userId$?.listen((id) => _userId = id);
+    _proxyUrl = proxyUrl;
   }
 
   /// Sends a request to track a specific event.
@@ -386,6 +393,11 @@ class MixpanelAnalytics {
   Future<bool> _sendEvent(String event, String op) async {
     var url = '$baseApi/$op/?data=$event&verbose=${_verbose ? 1 : 0}'
         '&ip=${_useIp ? 1 : 0}';
+    if (_proxyUrl != null) {
+      url = url.replaceFirst('https://', '');
+      url = '$_proxyUrl/$url';
+    }
+    
     try {
       var response = await http.get(url, headers: {
         'Content-type': 'application/json',
@@ -405,6 +417,10 @@ class MixpanelAnalytics {
   /// Sends the batch of events to the mixpanel API endpoint.
   Future<bool> _sendBatch(String batch, String op) async {
     var url = '$baseApi/$op/?verbose=${_verbose ? 1 : 0}&ip=${_useIp ? 1 : 0}';
+    if (_proxyUrl != null) {
+      url = url.replaceFirst('https://', '');
+      url = '$_proxyUrl/$url';
+    }
     try {
       var response = await http.post(url, headers: {
         'Content-type': 'application/x-www-form-urlencoded',
