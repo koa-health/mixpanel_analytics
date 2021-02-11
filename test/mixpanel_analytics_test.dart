@@ -15,7 +15,7 @@ const String mixpanelToken = 'some-mixpanel-token';
 
 const String userId = 'some-user-id';
 
-const String fixedTimeString = '2019-06-21T15:16:22.328896';
+const String fixedTimeString = '2019-06-21T15:16:22.32Z';
 
 const Map<String, String> fakeResponseNoVerbose = {'ok': '1', 'nook': '0'};
 
@@ -44,7 +44,7 @@ void main() {
   }
 
   String buildGetRequest(String operation, Object event) =>
-      '${MixpanelAnalytics.baseApi}/$operation/?data=${base64Encoder(event)}&verbose=0';
+      '${MixpanelAnalytics.baseApi}/$operation/?data=${base64Encoder(event)}&verbose=0&ip=0';
 
   void stubGet(Response response) {
     when(http.get(argThat(startsWith(MixpanelAnalytics.baseApi)),
@@ -66,6 +66,7 @@ void main() {
           token: mixpanelToken,
           userId$: userId$.stream,
           verbose: false,
+          useIp: false,
           onError: (_) {})
         ..http = http;
       userId$.add(userId);
@@ -90,7 +91,7 @@ void main() {
         'properties': {
           'key': 'value',
           'token': 'some-mixpanel-token',
-          'time': 1561122982328,
+          'time': 1561130182320,
           'distinct_id': 'some-user-id'
         }
       });
@@ -117,7 +118,7 @@ void main() {
       var expected = buildGetRequest('engage', {
         '\$set': {'key': 'value'},
         '\$token': 'some-mixpanel-token',
-        '\$time': 1561122982328,
+        '\$time': 1561130182320,
         '\$distinct_id': 'some-user-id'
       });
 
@@ -159,6 +160,7 @@ void main() {
           userId$: userId$.stream,
           uploadInterval: Duration(seconds: uploadIntervalSeconds),
           verbose: false,
+          ip: false,
           onError: (_) {})
         ..http = http
         ..prefs = prefs;
@@ -192,7 +194,7 @@ void main() {
             'properties': {
               'key': 'value1',
               'token': 'some-mixpanel-token',
-              'time': 1561122982328,
+              'time': 1561130182320,
               'distinct_id': 'some-user-id'
             }
           },
@@ -201,7 +203,7 @@ void main() {
             'properties': {
               'key': 'value2',
               'token': 'some-mixpanel-token',
-              'time': 1561122982328,
+              'time': 1561130182320,
               'distinct_id': 'some-user-id'
             }
           },
@@ -227,7 +229,8 @@ void main() {
           expected);
     });
 
-    test('batch mode will send whatever is in shared preferences on start',
+    test(
+        'batch mode will send whatever is in shared preferences whenever an event is sent',
         () async {
       var events = {
         'track': [
@@ -236,7 +239,7 @@ void main() {
             'properties': {
               'key': 'value1',
               'token': 'some-mixpanel-token',
-              'time': 1561122982328,
+              'time': 1561130182320,
               'distinct_id': 'some-user-id'
             }
           },
@@ -245,11 +248,21 @@ void main() {
             'properties': {
               'key': 'value2',
               'token': 'some-mixpanel-token',
-              'time': 1561122982328,
+              'time': 1561130182320,
               'distinct_id': 'some-user-id'
             }
           },
         ]
+      };
+
+      var extraEvent = {
+        'event': 'random event',
+        'properties': {
+          'key': 'value3',
+          'token': 'some-mixpanel-token',
+          'time': 1561130182320,
+          'distinct_id': 'some-user-id'
+        }
       };
 
       stubPrefsSetString('');
@@ -260,11 +273,16 @@ void main() {
 
       verifyZeroInteractions(http);
 
+      await sut.track(
+          event: extraEvent['event'],
+          properties: extraEvent['properties'],
+          time: DateTime.fromMillisecondsSinceEpoch(1561130182320));
+
       var expected = {
-        'data': base64Encoder([...events['track']])
+        'data': base64Encoder([...events['track'], extraEvent])
       };
 
-      await Future.delayed(Duration(seconds: uploadIntervalSeconds + 1), () {});
+      await Future.delayed(Duration(seconds: uploadIntervalSeconds + 2), () {});
 
       expect(
           verify(http.post(any,

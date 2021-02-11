@@ -37,6 +37,10 @@ class MixpanelAnalytics {
   // If present and equal to true, more detailed information will be printed on error.
   bool _verbose;
 
+  /// If present and equal to true, the geolocation data (e.g. city & country)
+  /// will be included and inferred from client's IP address.
+  bool _useIp;
+
   // In case we use [MixpanelAnalytics.batch()] we will send analytics every [uploadInterval]
   // Will be zero by default
   Duration _uploadInterval = Duration.zero;
@@ -115,18 +119,22 @@ class MixpanelAnalytics {
   /// [shouldAnonymize] will anonymize the sensitive information (userId) sent to mixpanel.
   /// [shaFn] function used to anonymize the data.
   /// [verbose] true will provide a detailed error cause in case the request is not successful.
+  /// [useIp] is the `ip` property as explained in [mixpanel documentation](https://developer.mixpanel.com/docs/http)
   /// [onError] is a callback function that will be executed in case there is an error, otherwise `debugPrint` will be used.
-  MixpanelAnalytics(
-      {@required String token,
-      @required Stream<String> userId$,
-      bool shouldAnonymize,
-      ShaFn shaFn,
-      bool verbose,
-      Function onError,
-      String proxyUrl}) {
+  MixpanelAnalytics({
+    @required String token,
+    @required Stream<String> userId$,
+    bool shouldAnonymize,
+    ShaFn shaFn,
+    bool verbose,
+    bool useIp,
+    Function onError,
+    String proxyUrl
+  }) {
     _token = token;
     _userId$ = userId$;
-    _verbose = verbose;
+    _verbose = verbose ?? false;
+    _useIp = useIp ?? false;
     _onError = onError;
     _shouldAnonymize = shouldAnonymize ?? false;
     _shaFn = shaFn ?? _defaultShaFn;
@@ -143,6 +151,7 @@ class MixpanelAnalytics {
   /// [shouldAnonymize] will anonymize the sensitive information (userId) sent to mixpanel.
   /// [shaFn] function used to anonymize the data.
   /// [verbose] true will provide a detailed error cause in case the request is not successful.
+  /// [ip] is the `ip` property as explained in [mixpanel documentation](https://developer.mixpanel.com/docs/http)
   /// [onError] is a callback function that will be executed in case there is an error, otherwise `debugPrint` will be used.
   MixpanelAnalytics.batch({
     @required String token,
@@ -151,12 +160,14 @@ class MixpanelAnalytics {
     bool shouldAnonymize,
     ShaFn shaFn,
     bool verbose,
+    bool ip,
     Function onError,
     String proxyUrl,
   }) {
     _token = token;
     _userId$ = userId$;
-    _verbose = verbose;
+    _verbose = verbose ?? false;
+    _useIp = ip ?? false;
     _uploadInterval = uploadInterval;
     _shouldAnonymize = shouldAnonymize ?? false;
     _shaFn = shaFn ?? _defaultShaFn;
@@ -194,6 +205,14 @@ class MixpanelAnalytics {
         event, properties, time ?? DateTime.now(), ip, insertId);
 
     if (isBatchMode) {
+      // TODO: this should be place within an init() along within the constructor.
+      // This is not perfect, as we are waiting for the caller to send an event before sending the stored in memory.
+      // But doing it on an init() would be a breaking change.
+      // To be executed only the first time user tries to send an event
+      if (!_isQueuedEventsReadFromStorage) {
+        await _restoreQueuedEventsFromStorage();
+        _isQueuedEventsReadFromStorage = true;
+      }
       _trackEvents.add(trackEvent);
       return _saveQueuedEventsToLocalStorage();
     }
@@ -229,6 +248,14 @@ class MixpanelAnalytics {
         operation, value, time ?? DateTime.now(), ip, ignoreTime, ignoreAlias);
 
     if (isBatchMode) {
+      // TODO: this should be place within an init() along within the constructor.
+      // This is not perfect, as we are waiting for the caller to send an event before sending the stored in memory.
+      // But doing it on an init() would be a breaking change.
+      // To be executed only the first time user tries to send an event
+      if (!_isQueuedEventsReadFromStorage) {
+        await _restoreQueuedEventsFromStorage();
+        _isQueuedEventsReadFromStorage = true;
+      }
       _engageEvents.add(engageEvent);
       return _saveQueuedEventsToLocalStorage();
     }
@@ -262,10 +289,6 @@ class MixpanelAnalytics {
   // Tries to send all events pending to be send.
   // TODO if error when sending, send events in isolation identify the incorrect message
   Future<void> _uploadQueuedEvents() async {
-    if (!_isQueuedEventsReadFromStorage) {
-      await _restoreQueuedEventsFromStorage();
-      _isQueuedEventsReadFromStorage = true;
-    }
     await _uploadEvents(_trackEvents, _sendTrackBatch);
     await _uploadEvents(_engageEvents, _sendEngageBatch);
     await _saveQueuedEventsToLocalStorage();
@@ -308,7 +331,9 @@ class MixpanelAnalytics {
       'distinct_id': props['distinct_id'] == null
           ? _userId == null
               ? 'Unknown'
-              : _shouldAnonymize ? _anonymize('userId', _userId) : _userId
+              : _shouldAnonymize
+                  ? _anonymize('userId', _userId)
+                  : _userId
           : props['distinct_id']
     };
     if (ip != null) {
@@ -336,7 +361,9 @@ class MixpanelAnalytics {
       '\$distinct_id': value['distinct_id'] == null
           ? _userId == null
               ? 'Unknown'
-              : _shouldAnonymize ? _anonymize('userId', _userId) : _userId
+              : _shouldAnonymize
+                  ? _anonymize('userId', _userId)
+                  : _userId
           : value['distinct_id']
     };
     if (ip != null) {
@@ -365,12 +392,13 @@ class MixpanelAnalytics {
 
   // Sends the event to the mixpanel API endpoint.
   Future<bool> _sendEvent(String event, String op) async {
-    var url = '$baseApi/$op/?data=$event&verbose=${_verbose ? 1 : 0}';
+    var url = '$baseApi/$op/?data=$event&verbose=${_verbose ? 1 : 0}'
+        '&ip=${_useIp ? 1 : 0}';
     if (_proxyUrl != null) {
       url = url.replaceFirst('https://', '');
       url = '$_proxyUrl/$url';
     }
-
+    
     try {
       var response = await http.get(url, headers: {
         'Content-type': 'application/json',
@@ -389,12 +417,11 @@ class MixpanelAnalytics {
 
   // Sends the batch of events to the mixpanel API endpoint.
   Future<bool> _sendBatch(String batch, String op) async {
-    var url = '$baseApi/$op/?verbose=${_verbose ? 1 : 0}';
+    var url = '$baseApi/$op/?verbose=${_verbose ? 1 : 0}&ip=${_useIp ? 1 : 0}';
     if (_proxyUrl != null) {
       url = url.replaceFirst('https://', '');
       url = '$_proxyUrl/$url';
     }
-
     try {
       var response = await http.post(url, headers: {
         'Content-type': 'application/x-www-form-urlencoded',
