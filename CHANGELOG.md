@@ -1,3 +1,7 @@
+## [2.0.0] - 2021-03-09
+
+- Migrate to null safety
+
 ## [1.4.0] - 2021-02-11
 
 - Support for CORS bypass in Flutter web.

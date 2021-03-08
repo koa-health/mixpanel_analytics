@@ -25,11 +25,11 @@ class MyHomePage extends StatefulWidget {
 class _MyHomePageState extends State<MyHomePage> {
   final _user$ = StreamController<String>.broadcast();
 
-  MixpanelAnalytics _mixpanel;
-  MixpanelAnalytics _mixpanelBatch;
+  MixpanelAnalytics? _mixpanel;
+  MixpanelAnalytics? _mixpanelBatch;
 
-  String _error;
-  String _success;
+  Object? _error;
+  String? _success;
 
   int _levelNumber = 0;
 
@@ -78,10 +78,10 @@ class _MyHomePageState extends State<MyHomePage> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            RaisedButton(
+            ElevatedButton(
               child: Text('Send track event'),
               onPressed: () async {
-                var result = await _mixpanel
+                var result = await _mixpanel!
                     .track(event: 'testEvent', properties: {'prop1': 'value1'});
                 if (result) {
                   setState(() {
@@ -91,10 +91,10 @@ class _MyHomePageState extends State<MyHomePage> {
                 }
               },
             ),
-            RaisedButton(
+            ElevatedButton(
               child: Text('Send engage event'),
               onPressed: () async {
-                var result = await _mixpanel
+                var result = await _mixpanel!
                     .engage(operation: MixpanelUpdateOperations.$set, value: {
                   'Level Number': _levelNumber,
                 });
@@ -107,10 +107,10 @@ class _MyHomePageState extends State<MyHomePage> {
                 }
               },
             ),
-            RaisedButton(
+            ElevatedButton(
               child: Text('Send track event in batch'),
               onPressed: () async {
-                var result = await _mixpanelBatch
+                var result = await _mixpanelBatch!
                     .track(event: 'testEvent', properties: {'prop1': 'value1'});
                 if (result) {
                   setState(() {
@@ -120,10 +120,10 @@ class _MyHomePageState extends State<MyHomePage> {
                 }
               },
             ),
-            RaisedButton(
+            ElevatedButton(
               child: Text('Send engage event in batch'),
               onPressed: () async {
-                var result = await _mixpanelBatch
+                var result = await _mixpanelBatch!
                     .engage(operation: MixpanelUpdateOperations.$set, value: {
                   'Level Number': _levelNumber,
                 });
@@ -136,8 +136,8 @@ class _MyHomePageState extends State<MyHomePage> {
                 }
               },
             ),
-            _error != null ? Text(_error) : Container(),
-            _success != null ? Text(_success) : Container(),
+            _error != null ? Text(_error.toString()) : Container(),
+            _success != null ? Text(_success!) : Container(),
           ],
         ),
       ),

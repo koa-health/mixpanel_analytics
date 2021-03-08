@@ -5,16 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-enum MixpanelUpdateOperations {
-  $set,
-  $setOnce,
-  $add,
-  $append,
-  $union,
-  $remove,
-  $unset,
-  $delete
-}
+enum MixpanelUpdateOperations { $set, $setOnce, $add, $append, $union, $remove, $unset, $delete }
 
 typedef ShaFn = String Function(String value);
 
@@ -32,14 +23,14 @@ class MixpanelAnalytics {
   };
 
   /// The Mixpanel token associated with your project.
-  String _token;
+  final String _token;
 
   /// If present and equal to true, more detailed information will be printed on error.
-  bool _verbose;
+  final bool _verbose;
 
   /// If present and equal to true, the geolocation data (e.g. city & country)
   /// will be included and inferred from client's IP address.
-  bool _useIp;
+  final bool _useIp;
 
   /// In case we use [MixpanelAnalytics.batch()] we will send analytics every [uploadInterval]
   /// Will be zero by default
@@ -48,31 +39,31 @@ class MixpanelAnalytics {
   /// In case we use [MixpanelAnalytics.batch()] we need to provide a storage provider
   /// This will be used to save the events not sent
   @visibleForTesting
-  SharedPreferences prefs;
+  SharedPreferences? prefs;
 
   /// If exists, will be sent in the event, otherwise anonymousId will be used.
-  Stream<String> _userId$;
+  final Stream<String>? _userId$;
 
   /// Stores the value of the userId
-  String _userId;
+  String? _userId;
 
   /// Sets the value of the userId.
   set userId(String id) => _userId = id;
 
   /// Reference to the timer set to upload events in batch
-  Timer _batchTimer;
+  Timer? _batchTimer;
 
   /// If true, sensitive information like deviceId or userId will be anonymized prior to being sent.
-  bool _shouldAnonymize;
+  final bool _shouldAnonymize;
 
   /// As the fields to be anonymized will be the same with every event log, we can keep a cache of the values already anonymized.
-  Map<String, String> _anonymized;
+  Map<String, String>? _anonymized;
 
   /// Function used to anonymize the data.
-  ShaFn _shaFn;
+  final ShaFn _shaFn;
 
   /// If this is not null, any error will be sent to this function, otherwise `debugPrint` will be used.
-  void Function(Object error) _onError;
+  final void Function(Object error)? _onError;
 
   /// Queued events used when these are sent in batch.
   final Map<String, dynamic> _queuedEvents = {'track': [], 'engage': []};
@@ -103,14 +94,12 @@ class MixpanelAnalytics {
   static String _defaultShaFn(value) => value;
 
   /// Proxy url to by pass CORs in flutter web
-  String _proxyUrl;
+  final String? _proxyUrl;
 
   /// Used in case we want to remove the timer to send batched events.
   void dispose() {
-    if (_batchTimer != null) {
-      _batchTimer.cancel();
-      _batchTimer = null;
-    }
+    _batchTimer?.cancel();
+    _batchTimer = null;
   }
 
   /// Provides an instance of this class.
@@ -125,24 +114,23 @@ class MixpanelAnalytics {
   /// [useIp] is the `ip` property as explained in [mixpanel documentation](https://developer.mixpanel.com/docs/http)
   /// [onError] is a callback function that will be executed in case there is an error, otherwise `debugPrint` will be used.
   MixpanelAnalytics({
-    @required String token,
-    Stream<String> userId$,
-    bool shouldAnonymize,
-    ShaFn shaFn,
-    bool verbose,
-    bool useIp,
-    Function onError,
-    String proxyUrl
-  }) {
-    _token = token;
-    _userId$ = userId$;
-    _verbose = verbose ?? false;
-    _useIp = useIp ?? false;
-    _onError = onError;
-    _shouldAnonymize = shouldAnonymize ?? false;
-    _shaFn = shaFn ?? _defaultShaFn;
+    required String token,
+    Stream<String>? userId$,
+    bool shouldAnonymize = false,
+    ShaFn shaFn = _defaultShaFn,
+    bool verbose = false,
+    bool useIp = false,
+    void Function(Object)? onError,
+    String? proxyUrl,
+  })  : _token = token,
+        _userId$ = userId$,
+        _verbose = verbose,
+        _useIp = useIp,
+        _onError = onError,
+        _shouldAnonymize = shouldAnonymize,
+        _shaFn = shaFn,
+        _proxyUrl = proxyUrl {
     _userId$?.listen((id) => _userId = id);
-    _proxyUrl = proxyUrl;
   }
 
   /// Provides an instance of this class.
@@ -156,27 +144,26 @@ class MixpanelAnalytics {
   /// [ip] is the `ip` property as explained in [mixpanel documentation](https://developer.mixpanel.com/docs/http)
   /// [onError] is a callback function that will be executed in case there is an error, otherwise `debugPrint` will be used.
   MixpanelAnalytics.batch({
-    @required String token,
-    @required Duration uploadInterval,
-    Stream<String> userId$,
-    bool shouldAnonymize,
-    ShaFn shaFn,
-    bool verbose,
-    bool ip,
-    Function onError,
-    String proxyUrl,
-  }) {
-    _token = token;
-    _userId$ = userId$;
-    _verbose = verbose ?? false;
-    _useIp = ip ?? false;
-    _uploadInterval = uploadInterval;
-    _shouldAnonymize = shouldAnonymize ?? false;
-    _shaFn = shaFn ?? _defaultShaFn;
-    _onError = onError;
+    required String token,
+    required Duration uploadInterval,
+    Stream<String>? userId$,
+    bool shouldAnonymize = false,
+    ShaFn shaFn = _defaultShaFn,
+    bool verbose = false,
+    bool useIp = false,
+    void Function(Object)? onError,
+    String? proxyUrl,
+  })  : _token = token,
+        _userId$ = userId$,
+        _verbose = verbose,
+        _useIp = useIp,
+        _onError = onError,
+        _shouldAnonymize = shouldAnonymize,
+        _shaFn = shaFn,
+        _proxyUrl = proxyUrl,
+        _uploadInterval = uploadInterval {
     _batchTimer = Timer.periodic(_uploadInterval, (_) => _uploadQueuedEvents());
     _userId$?.listen((id) => _userId = id);
-    _proxyUrl = proxyUrl;
   }
 
   /// Sends a request to track a specific event.
@@ -187,21 +174,13 @@ class MixpanelAnalytics {
   /// [ip] is the `ip` property as explained in [mixpanel documentation](https://developer.mixpanel.com/docs/http)
   /// [insertId] is the `$insert_id` property as explained in [mixpanel documentation](https://developer.mixpanel.com/docs/http)
   Future<bool> track({
-    @required String event,
-    @required Map<String, dynamic> properties,
-    DateTime time,
-    String ip,
-    String insertId,
+    required String event,
+    required Map<String, dynamic> properties,
+    DateTime? time,
+    String? ip,
+    String? insertId,
   }) async {
-    if (event == null) {
-      throw ArgumentError.notNull('event');
-    }
-    if (properties == null) {
-      throw ArgumentError.notNull('properties');
-    }
-
-    var trackEvent = _createTrackEvent(
-        event, properties, time ?? DateTime.now(), ip, insertId);
+    final trackEvent = _createTrackEvent(event, properties, time ?? DateTime.now(), ip, insertId);
 
     if (isBatchMode) {
       // TODO: this should be place within an init() along within the constructor.
@@ -216,7 +195,7 @@ class MixpanelAnalytics {
       return _saveQueuedEventsToLocalStorage();
     }
 
-    var base64Event = _base64Encoder(trackEvent);
+    final base64Event = _base64Encoder(trackEvent);
     return _sendTrackEvent(base64Event);
   }
 
@@ -229,22 +208,14 @@ class MixpanelAnalytics {
   /// [ignoreTime] is the `$ignore_time` property as explained in [mixpanel documentation](https://developer.mixpanel.com/docs/http)
   /// [ignoreAlias] is the `$ignore_alias` property as explained in [mixpanel documentation](https://developer.mixpanel.com/docs/http)
   Future<bool> engage({
-    @required MixpanelUpdateOperations operation,
-    @required Map<String, dynamic> value,
-    DateTime time,
-    String ip,
-    bool ignoreTime,
-    bool ignoreAlias,
+    required MixpanelUpdateOperations operation,
+    required Map<String, dynamic> value,
+    DateTime? time,
+    String? ip,
+    bool? ignoreTime,
+    bool? ignoreAlias,
   }) async {
-    if (operation == null) {
-      throw ArgumentError.notNull('operation');
-    }
-    if (value == null) {
-      throw ArgumentError.notNull('value');
-    }
-
-    var engageEvent = _createEngageEvent(
-        operation, value, time ?? DateTime.now(), ip, ignoreTime, ignoreAlias);
+    final engageEvent = _createEngageEvent(operation, value, time ?? DateTime.now(), ip, ignoreTime, ignoreAlias);
 
     if (isBatchMode) {
       // TODO: this should be place within an init() along within the constructor.
@@ -259,7 +230,7 @@ class MixpanelAnalytics {
       return _saveQueuedEventsToLocalStorage();
     }
 
-    var base64Event = _base64Encoder(engageEvent);
+    final base64Event = _base64Encoder(engageEvent);
     return _sendEngageEvent(base64Event);
   }
 
@@ -267,7 +238,7 @@ class MixpanelAnalytics {
   /// We do this in case the app was closed with events pending to be sent.
   Future<void> _restoreQueuedEventsFromStorage() async {
     prefs ??= await SharedPreferences.getInstance();
-    var encoded = prefs.getString(_prefsKey);
+    final encoded = prefs!.getString(_prefsKey);
     if (encoded != null) {
       Map<String, dynamic> events = json.decode(encoded);
       _queuedEvents.addAll(events);
@@ -277,8 +248,8 @@ class MixpanelAnalytics {
   /// If we are in batch mode we save all events in storage in case the app is closed.
   Future<bool> _saveQueuedEventsToLocalStorage() async {
     prefs ??= await SharedPreferences.getInstance();
-    var encoded = json.encode(_queuedEvents);
-    var result = await prefs.setString(_prefsKey, encoded).catchError((error) {
+    final encoded = json.encode(_queuedEvents);
+    final result = await prefs!.setString(_prefsKey, encoded).catchError((error) {
       _onErrorHandler(error, 'Error saving events in storage');
       return false;
     });
@@ -294,17 +265,16 @@ class MixpanelAnalytics {
   }
 
   /// As the API for Mixpanel only allows 50 events per batch, we need to restrict the events sent on each request.
-  int _getMaximumRange(int length) =>
-      length < maxEventsInBatchRequest ? length : maxEventsInBatchRequest;
+  int _getMaximumRange(int length) => length < maxEventsInBatchRequest ? length : maxEventsInBatchRequest;
 
   /// Uploads all pending events in batches of maximum [maxEventsInBatchRequest].
   Future<void> _uploadEvents(List<dynamic> events, Function sendFn) async {
     List<dynamic> unsentEvents = [];
     while (events.isNotEmpty) {
-      var maxRange = _getMaximumRange(events.length);
-      var range = events.getRange(0, maxRange).toList();
-      var batch = _base64Encoder(range);
-      var success = await sendFn(batch);
+      final maxRange = _getMaximumRange(events.length);
+      final range = events.getRange(0, maxRange).toList();
+      final batch = _base64Encoder(range);
+      final success = await sendFn(batch);
       if (!success) {
         unsentEvents.addAll(range);
       }
@@ -320,8 +290,8 @@ class MixpanelAnalytics {
     String event,
     Map<String, dynamic> props,
     DateTime time,
-    String ip,
-    String insertId,
+    String? ip,
+    String? insertId,
   ) {
     var properties = {
       ...props,
@@ -331,7 +301,7 @@ class MixpanelAnalytics {
           ? _userId == null
               ? 'Unknown'
               : _shouldAnonymize
-                  ? _anonymize('userId', _userId)
+                  ? _anonymize('userId', _userId!)
                   : _userId
           : props['distinct_id']
     };
@@ -341,27 +311,28 @@ class MixpanelAnalytics {
     if (insertId != null) {
       properties = {...properties, '\$insert_id': insertId};
     }
-    var data = {'event': event, 'properties': properties};
+    final data = {'event': event, 'properties': properties};
     return data;
   }
 
   /// The engage event is coded into base64 with the required properties.
   Map<String, dynamic> _createEngageEvent(
-      MixpanelUpdateOperations operation,
-      Map<String, dynamic> value,
-      DateTime time,
-      String ip,
-      bool ignoreTime,
-      bool ignoreAlias) {
-    var data = {
-      updateOperations[operation]: value,
+    MixpanelUpdateOperations operation,
+    Map<String, dynamic> value,
+    DateTime time,
+    String? ip,
+    bool? ignoreTime,
+    bool? ignoreAlias,
+  ) {
+    var data = <String, dynamic>{
+      operation.propertyKey: value,
       '\$token': _token,
       '\$time': time.millisecondsSinceEpoch,
       '\$distinct_id': value['distinct_id'] == null
           ? _userId == null
               ? 'Unknown'
               : _shouldAnonymize
-                  ? _anonymize('userId', _userId)
+                  ? _anonymize('userId', _userId!)
                   : _userId
           : value['distinct_id']
     };
@@ -379,9 +350,9 @@ class MixpanelAnalytics {
 
   /// Event data has to be sent with base64 encoding.
   String _base64Encoder(Object event) {
-    var str = json.encode(event);
-    var bytes = utf8.encode(str);
-    var base64 = base64Encode(bytes);
+    final str = json.encode(event);
+    final bytes = utf8.encode(str);
+    final base64 = base64Encode(bytes);
     return base64;
   }
 
@@ -397,13 +368,12 @@ class MixpanelAnalytics {
       url = url.replaceFirst('https://', '');
       url = '$_proxyUrl/$url';
     }
-    
+
     try {
-      var response = await http.get(url, headers: {
+      final response = await http.get(Uri.parse(url), headers: {
         'Content-type': 'application/json',
       });
-      return response.statusCode == 200 &&
-          _validateResponseBody(url, response.body);
+      return response.statusCode == 200 && _validateResponseBody(url, response.body);
     } on Exception catch (error) {
       _onErrorHandler(error, 'Request error to $url');
       return false;
@@ -422,13 +392,12 @@ class MixpanelAnalytics {
       url = '$_proxyUrl/$url';
     }
     try {
-      var response = await http.post(url, headers: {
+      final response = await http.post(Uri.parse(url), headers: {
         'Content-type': 'application/x-www-form-urlencoded',
       }, body: {
         'data': batch
       });
-      return response.statusCode == 200 &&
-          _validateResponseBody(url, response.body);
+      return response.statusCode == 200 && _validateResponseBody(url, response.body);
     } on Exception catch (error) {
       _onErrorHandler(error, 'Request error to $url');
       return false;
@@ -439,9 +408,9 @@ class MixpanelAnalytics {
   /// Check [mixpanel documentation](https://developer.mixpanel.com/docs/http) for more information on `verbose`.
   bool _validateResponseBody(String url, String body) {
     if (_verbose) {
-      var decodedBody = json.decode(body);
-      var status = decodedBody['status'];
-      var error = decodedBody['error'];
+      final decodedBody = json.decode(body);
+      final status = decodedBody['status'];
+      final error = decodedBody['error'];
       if (status == 0) {
         _onErrorHandler(null, 'Request error to $url: $error');
         return false;
@@ -459,18 +428,34 @@ class MixpanelAnalytics {
   /// Anonymizes the field but also saves it in a local cache.
   String _anonymize(String field, String value) {
     _anonymized ??= {};
-    if (_anonymized[field] == null) {
-      _anonymized[field] = _shaFn(value);
+    if (_anonymized![field] == null) {
+      _anonymized![field] = _shaFn(value);
     }
-    return _anonymized[field];
+    return _anonymized![field]!;
   }
 
   /// Proxies the error to the callback function provided or to standard `debugPrint`.
-  void _onErrorHandler(dynamic error, String message) {
-    if (_onError != null) {
-      _onError(error ?? message);
+  void _onErrorHandler(Object? error, String message) {
+    final errorCallback = _onError;
+    if (errorCallback != null) {
+      errorCallback(error ?? message);
     } else {
       debugPrint(message);
     }
   }
+}
+
+extension UpdateOperationsExtension on MixpanelUpdateOperations {
+  static const Map<MixpanelUpdateOperations, String> _updateOperations = {
+    MixpanelUpdateOperations.$set: '\$set',
+    MixpanelUpdateOperations.$setOnce: '\$set_once',
+    MixpanelUpdateOperations.$add: '\$add',
+    MixpanelUpdateOperations.$append: '\$append',
+    MixpanelUpdateOperations.$union: '\$union',
+    MixpanelUpdateOperations.$remove: '\$remove',
+    MixpanelUpdateOperations.$unset: '\$unset',
+    MixpanelUpdateOperations.$delete: '\$delete',
+  };
+
+  String get propertyKey => _updateOperations[this]!;
 }
