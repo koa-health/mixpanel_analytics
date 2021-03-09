@@ -5,7 +5,16 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-enum MixpanelUpdateOperations { $set, $setOnce, $add, $append, $union, $remove, $unset, $delete }
+enum MixpanelUpdateOperations {
+  $set,
+  $setOnce,
+  $add,
+  $append,
+  $union,
+  $remove,
+  $unset,
+  $delete,
+}
 
 typedef ShaFn = String Function(String value);
 
