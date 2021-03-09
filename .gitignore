@@ -28,8 +28,12 @@
 .pub-cache/
 .pub/
 build/
+coverage/
 .flutter-plugins-dependencies
 flutter_export_environment.sh
+
+# Generated mocks
+*.mocks.dart
 
 # Android related
 **/android/**/gradle-wrapper.jar
@@ -72,6 +76,3 @@ flutter_export_environment.sh
 !**/ios/**/default.pbxuser
 !**/ios/**/default.perspectivev3
 !/packages/flutter_tools/test/data/dart_dependencies_test/**/.packages
-
-# Generated mocks
-*.mocks.dart

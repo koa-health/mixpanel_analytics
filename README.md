@@ -74,3 +74,36 @@ In addition to the `data` parameter, `https://api.mixpanel.com/engage` supports 
 When sending batch requests, if one of them is invalid the whole batch operation will fail and the batch will be saved to retry the next iteration.
 This could become a problem as the whole batch could be stored and retried over and over.
 A strategy for this would be either to send individually the requests and ditch the only invalid one or just dith the whole lot (TBD).
+
+## Project Setup
+
+This project is written in [Flutter](https://flutter.dev/) using the `stable` channel.
+
+```bat
+> flutter channel stable
+> flutter upgrade
+```
+
+### Install Dependencies
+
+```bat
+> flutter pub get
+```
+
+### Build generated files (for Mockito)
+
+```bat
+> flutter pub run build_runner build --delete-conflicting-outputs
+```
+
+**Note: During development this can be set to monitor for changes**
+
+```bat
+> flutter pub run build_runner watch --delete-conflicting-outputs
+```
+
+### Running tests
+
+```bat
+> flutter test --coverage
+```
