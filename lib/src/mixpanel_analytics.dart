@@ -19,18 +19,6 @@ enum MixpanelUpdateOperations {
 typedef ShaFn = String Function(String value);
 
 class MixpanelAnalytics {
-  /// This are the update operations allowed for the 'engage' request.
-  static const Map<MixpanelUpdateOperations, String> updateOperations = {
-    MixpanelUpdateOperations.$set: '\$set',
-    MixpanelUpdateOperations.$setOnce: '\$set_once',
-    MixpanelUpdateOperations.$add: '\$add',
-    MixpanelUpdateOperations.$append: '\$append',
-    MixpanelUpdateOperations.$union: '\$union',
-    MixpanelUpdateOperations.$remove: '\$remove',
-    MixpanelUpdateOperations.$unset: '\$unset',
-    MixpanelUpdateOperations.$delete: '\$delete',
-  };
-
   /// The Mixpanel token associated with your project.
   final String _token;
 
@@ -189,7 +177,8 @@ class MixpanelAnalytics {
     String? ip,
     String? insertId,
   }) async {
-    final trackEvent = _createTrackEvent(event, properties, time ?? DateTime.now(), ip, insertId);
+    final trackEvent = _createTrackEvent(
+        event, properties, time ?? DateTime.now(), ip, insertId);
 
     if (isBatchMode) {
       // TODO: this should be place within an init() along within the constructor.
@@ -224,7 +213,8 @@ class MixpanelAnalytics {
     bool? ignoreTime,
     bool? ignoreAlias,
   }) async {
-    final engageEvent = _createEngageEvent(operation, value, time ?? DateTime.now(), ip, ignoreTime, ignoreAlias);
+    final engageEvent = _createEngageEvent(
+        operation, value, time ?? DateTime.now(), ip, ignoreTime, ignoreAlias);
 
     if (isBatchMode) {
       // TODO: this should be place within an init() along within the constructor.
@@ -258,7 +248,8 @@ class MixpanelAnalytics {
   Future<bool> _saveQueuedEventsToLocalStorage() async {
     prefs ??= await SharedPreferences.getInstance();
     final encoded = json.encode(_queuedEvents);
-    final result = await prefs!.setString(_prefsKey, encoded).catchError((error) {
+    final result =
+        await prefs!.setString(_prefsKey, encoded).catchError((error) {
       _onErrorHandler(error, 'Error saving events in storage');
       return false;
     });
@@ -266,7 +257,7 @@ class MixpanelAnalytics {
   }
 
   /// Tries to send all events pending to be send.
-  /// TODO if error when sending, send events in isolation identify the incorrect message
+  /// TODO: if error when sending, send events in isolation identify the incorrect message
   Future<void> _uploadQueuedEvents() async {
     await _uploadEvents(_trackEvents, _sendTrackBatch);
     await _uploadEvents(_engageEvents, _sendEngageBatch);
@@ -274,7 +265,8 @@ class MixpanelAnalytics {
   }
 
   /// As the API for Mixpanel only allows 50 events per batch, we need to restrict the events sent on each request.
-  int _getMaximumRange(int length) => length < maxEventsInBatchRequest ? length : maxEventsInBatchRequest;
+  int _getMaximumRange(int length) =>
+      length < maxEventsInBatchRequest ? length : maxEventsInBatchRequest;
 
   /// Uploads all pending events in batches of maximum [maxEventsInBatchRequest].
   Future<void> _uploadEvents(List<dynamic> events, Function sendFn) async {
@@ -382,7 +374,8 @@ class MixpanelAnalytics {
       final response = await http.get(Uri.parse(url), headers: {
         'Content-type': 'application/json',
       });
-      return response.statusCode == 200 && _validateResponseBody(url, response.body);
+      return response.statusCode == 200 &&
+          _validateResponseBody(url, response.body);
     } on Exception catch (error) {
       _onErrorHandler(error, 'Request error to $url');
       return false;
@@ -406,7 +399,8 @@ class MixpanelAnalytics {
       }, body: {
         'data': batch
       });
-      return response.statusCode == 200 && _validateResponseBody(url, response.body);
+      return response.statusCode == 200 &&
+          _validateResponseBody(url, response.body);
     } on Exception catch (error) {
       _onErrorHandler(error, 'Request error to $url');
       return false;
