@@ -28,8 +28,12 @@
 .pub-cache/
 .pub/
 build/
+coverage/
 .flutter-plugins-dependencies
 flutter_export_environment.sh
+
+# Generated mocks
+*.mocks.dart
 
 # Android related
 **/android/**/gradle-wrapper.jar
