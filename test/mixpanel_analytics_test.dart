@@ -22,17 +22,18 @@ const String fakeNoOkResponseNoVerbose = '0';
 
 @GenerateMocks([Client, SharedPreferences])
 void main() {
-  MockClient? http;
-  MockSharedPreferences? prefs;
-  MixpanelAnalytics? sut;
-  StreamController<String>? userId$;
+  late MockClient http;
+  late MockSharedPreferences prefs;
+  late MixpanelAnalytics sut;
+  late StreamController<String> userId$;
 
   void stubPrefsSetString() {
-    when(prefs!.setString('mixpanel.analytics', any)).thenAnswer((_) async => true);
+    when(prefs.setString('mixpanel.analytics', any))
+        .thenAnswer((_) async => true);
   }
 
   void stubPrefsGetString(String? value) {
-    when(prefs!.getString('mixpanel.analytics')).thenReturn(value);
+    when(prefs.getString('mixpanel.analytics')).thenReturn(value);
   }
 
   String base64Encoder(Object event) {
@@ -42,17 +43,17 @@ void main() {
     return base64;
   }
 
-  Uri buildGetRequest(String operation, Object event) =>
-      Uri.parse('${MixpanelAnalytics.baseApi}/$operation/?data=${base64Encoder(event)}&verbose=0&ip=0');
+  Uri buildGetRequest(String operation, Object event) => Uri.parse(
+      '${MixpanelAnalytics.baseApi}/$operation/?data=${base64Encoder(event)}&verbose=0&ip=0');
 
   void stubGet(Response response) {
-    when(http!.get(any, headers: anyNamed('headers')))
+    when(http.get(any, headers: anyNamed('headers')))
         .thenAnswer((_) async => response);
   }
 
   void stubPost(Response response) {
     when(
-      http!.post(any, headers: anyNamed('headers'), body: anyNamed('body')),
+      http.post(any, headers: anyNamed('headers'), body: anyNamed('body')),
     ).thenAnswer((_) async => response);
   }
 
@@ -62,23 +63,22 @@ void main() {
       http = MockClient();
       sut = MixpanelAnalytics(
         token: mixpanelToken,
-        userId$: userId$!.stream,
+        userId$: userId$.stream,
         verbose: false,
         useIp: false,
         onError: (_) {},
-      )..http = http!;
-      userId$!.add(userId);
+      )..http = http;
+      userId$.add(userId);
     });
 
     tearDown(() {
-      userId$?.close();
-      clearInteractions(http);
-      reset(http);
-      http = null;
-      sut = null;
+      userId$.close();
+      sut.dispose();
     });
 
-    test('.track() sends an event to mixpanel with proper syntax using REST API', () async {
+    test(
+        '.track() sends an event to mixpanel with proper syntax using REST API',
+        () async {
       stubGet(Response(fakeResponseNoVerbose['ok']!, 200));
 
       final expected = buildGetRequest('track', {
@@ -91,7 +91,7 @@ void main() {
         },
       });
 
-      final success = await sut!.track(
+      final success = await sut.track(
         event: 'random event',
         properties: {'key': 'value'},
         time: DateTime.parse(fixedTimeString),
@@ -99,10 +99,16 @@ void main() {
 
       expect(success, true);
 
-      expect(verify(http!.get(captureAny, headers: anyNamed('headers'))).captured.single, expected);
+      expect(
+          verify(http.get(captureAny, headers: anyNamed('headers')))
+              .captured
+              .single,
+          expected);
     });
 
-    test('.engage() sends an event to mixpanel with proper syntax using REST API', () async {
+    test(
+        '.engage() sends an event to mixpanel with proper syntax using REST API',
+        () async {
       stubGet(Response(fakeResponseNoVerbose['ok']!, 200));
 
       final expected = buildGetRequest('engage', {
@@ -112,7 +118,7 @@ void main() {
         '\$distinct_id': 'some-user-id',
       });
 
-      final success = await sut!.engage(
+      final success = await sut.engage(
         operation: MixpanelUpdateOperations.$set,
         value: {'key': 'value'},
         time: DateTime.parse(fixedTimeString),
@@ -120,13 +126,17 @@ void main() {
 
       expect(success, true);
 
-      expect(verify(http!.get(captureAny, headers: anyNamed('headers'))).captured.single, expected);
+      expect(
+          verify(http.get(captureAny, headers: anyNamed('headers')))
+              .captured
+              .single,
+          expected);
     });
 
     test('an unsuccessful request returns false', () async {
       stubGet(Response(fakeResponseNoVerbose['nook']!, 401));
 
-      final success = await sut!.track(
+      final success = await sut.track(
         event: 'random event',
         properties: {'key': 'value'},
         time: DateTime.parse(fixedTimeString),
@@ -145,30 +155,24 @@ void main() {
       http = MockClient();
       sut = MixpanelAnalytics.batch(
         token: mixpanelToken,
-        userId$: userId$!.stream,
+        userId$: userId$.stream,
         uploadInterval: Duration(seconds: uploadIntervalSeconds),
         verbose: false,
         useIp: false,
         onError: (_) {},
       )
-        ..http = http!
+        ..http = http
         ..prefs = prefs;
-      userId$!.add(userId);
+      userId$.add(userId);
     });
 
     tearDown(() {
-      userId$?.close();
-      sut?.dispose();
-      clearInteractions(prefs);
-      clearInteractions(http);
-      reset(http);
-      reset(prefs);
-      prefs = null;
-      http = null;
-      sut = null;
+      userId$.close();
+      sut.dispose();
     });
 
-    test('.track() sends a bunch of events in batch to mixpanel with proper syntax using REST API after X seconds',
+    test(
+        '.track() sends a bunch of events in batch to mixpanel with proper syntax using REST API after X seconds',
         () async {
       stubPrefsSetString();
       stubPrefsGetString(null);
@@ -200,7 +204,10 @@ void main() {
 
       final success = await Future.wait(
         ['value1', 'value2'].map(
-          (v) => sut!.track(event: 'random event', properties: {'key': v}, time: DateTime.parse(fixedTimeString)),
+          (v) => sut.track(
+              event: 'random event',
+              properties: {'key': v},
+              time: DateTime.parse(fixedTimeString)),
         ),
       );
 
@@ -211,12 +218,17 @@ void main() {
       await Future.delayed(Duration(seconds: uploadIntervalSeconds + 1), () {});
 
       expect(
-        verify(http!.post(any, headers: anyNamed('headers'), body: captureAnyNamed('body'))).captured.single,
+        verify(http.post(any,
+                headers: anyNamed('headers'), body: captureAnyNamed('body')))
+            .captured
+            .single,
         expected,
       );
     });
 
-    test('batch mode will send whatever is in shared preferences whenever an event is sent', () async {
+    test(
+        'batch mode will send whatever is in shared preferences whenever an event is sent',
+        () async {
       final events = {
         'track': [
           {
@@ -258,7 +270,7 @@ void main() {
 
       verifyZeroInteractions(http);
 
-      await sut!.track(
+      await sut.track(
         // ignore: avoid_as
         event: extraEvent['event'] as String,
         // ignore: avoid_as
@@ -273,7 +285,10 @@ void main() {
       await Future.delayed(Duration(seconds: uploadIntervalSeconds + 2), () {});
 
       expect(
-        verify(http!.post(any, headers: anyNamed('headers'), body: captureAnyNamed('body'))).captured.single,
+        verify(http.post(any,
+                headers: anyNamed('headers'), body: captureAnyNamed('body')))
+            .captured
+            .single,
         expected,
       );
     });
