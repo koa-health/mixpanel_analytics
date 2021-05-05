@@ -102,8 +102,11 @@ class MixpanelAnalytics {
   /// Default sha function to be used when none is provided.
   static String _defaultShaFn(value) => value;
 
-  /// Proxy url to by pass CORs in flutter web
+  /// Proxy url to by pass CORs in flutter web.
   String _proxyUrl;
+
+  /// Optional headers to add to the requests to MixPanel.
+  Map<String, String> _optionalHeaders;
 
   /// Used in case we want to remove the timer to send batched events.
   void dispose() {
@@ -124,6 +127,8 @@ class MixpanelAnalytics {
   /// [verbose] true will provide a detailed error cause in case the request is not successful.
   /// [useIp] is the `ip` property as explained in [mixpanel documentation](https://developer.mixpanel.com/docs/http)
   /// [onError] is a callback function that will be executed in case there is an error, otherwise `debugPrint` will be used.
+  /// [proxyUrl] URL to use in the requests as a proxy. This URL will be used as follows $proxyUrl/mixpanel.api...
+  /// [optionalHeaders] http headers to add in each request.
   MixpanelAnalytics({
     @required String token,
     Stream<String> userId$,
@@ -132,7 +137,8 @@ class MixpanelAnalytics {
     bool verbose,
     bool useIp,
     Function onError,
-    String proxyUrl
+    String proxyUrl,
+    Map<String, String> optionalHeaders,
   }) {
     _token = token;
     _userId$ = userId$;
@@ -143,6 +149,7 @@ class MixpanelAnalytics {
     _shaFn = shaFn ?? _defaultShaFn;
     _userId$?.listen((id) => _userId = id);
     _proxyUrl = proxyUrl;
+    _optionalHeaders = optionalHeaders;
   }
 
   /// Provides an instance of this class.
@@ -155,6 +162,8 @@ class MixpanelAnalytics {
   /// [verbose] true will provide a detailed error cause in case the request is not successful.
   /// [ip] is the `ip` property as explained in [mixpanel documentation](https://developer.mixpanel.com/docs/http)
   /// [onError] is a callback function that will be executed in case there is an error, otherwise `debugPrint` will be used.
+  /// [proxyUrl] URL to use in the requests as a proxy. This URL will be used as follows $proxyUrl/mixpanel.api...
+  /// [optionalHeaders] http headers to add in each request.
   MixpanelAnalytics.batch({
     @required String token,
     @required Duration uploadInterval,
@@ -165,6 +174,7 @@ class MixpanelAnalytics {
     bool ip,
     Function onError,
     String proxyUrl,
+    Map<String, String> optionalHeaders,
   }) {
     _token = token;
     _userId$ = userId$;
@@ -177,6 +187,7 @@ class MixpanelAnalytics {
     _batchTimer = Timer.periodic(_uploadInterval, (_) => _uploadQueuedEvents());
     _userId$?.listen((id) => _userId = id);
     _proxyUrl = proxyUrl;
+    _optionalHeaders = optionalHeaders;
   }
 
   /// Sends a request to track a specific event.
@@ -397,11 +408,15 @@ class MixpanelAnalytics {
       url = url.replaceFirst('https://', '');
       url = '$_proxyUrl/$url';
     }
-    
+
     try {
-      var response = await http.get(url, headers: {
-        'Content-type': 'application/json',
-      });
+      var headers = {'Content-type': 'application/json'};
+
+      if (_optionalHeaders?.isNotEmpty ?? false) {
+        headers.addAll(_optionalHeaders);
+      }
+
+      var response = await http.get(url, headers: headers);
       return response.statusCode == 200 &&
           _validateResponseBody(url, response.body);
     } on Exception catch (error) {
@@ -422,11 +437,14 @@ class MixpanelAnalytics {
       url = '$_proxyUrl/$url';
     }
     try {
-      var response = await http.post(url, headers: {
-        'Content-type': 'application/x-www-form-urlencoded',
-      }, body: {
-        'data': batch
-      });
+      var headers = {'Content-type': 'application/x-www-form-urlencoded'};
+
+      if (_optionalHeaders?.isNotEmpty ?? false) {
+        headers.addAll(_optionalHeaders);
+      }
+
+      var response =
+          await http.post(url, headers: headers, body: {'data': batch});
       return response.statusCode == 200 &&
           _validateResponseBody(url, response.body);
     } on Exception catch (error) {
