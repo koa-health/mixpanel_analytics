@@ -59,6 +59,10 @@ class MixpanelAnalytics {
   /// Sets the value of the userId.
   set userId(String id) => _userId = id;
 
+  /// Sets the optional headers.
+  set optionalHeaders(Map<String, String> optionalHeaders) =>
+      _optionalHeaders = optionalHeaders;
+
   /// Reference to the timer set to upload events in batch
   Timer _batchTimer;
 
@@ -91,7 +95,7 @@ class MixpanelAnalytics {
 
   static const String baseApi = 'https://api.mixpanel.com';
 
-  static const _prefsKey = 'mixpanel.analytics';
+  static String _prefsKey = 'mixpanel.analytics';
 
   /// Returns the value of the token in mixpanel.
   String get mixpanelToken => _token;
@@ -129,6 +133,7 @@ class MixpanelAnalytics {
   /// [onError] is a callback function that will be executed in case there is an error, otherwise `debugPrint` will be used.
   /// [proxyUrl] URL to use in the requests as a proxy. This URL will be used as follows $proxyUrl/mixpanel.api...
   /// [optionalHeaders] http headers to add in each request.
+  /// [prefsKey] key to use in the SharedPreferences. If you leave it empty a default name will be used.
   MixpanelAnalytics({
     @required String token,
     Stream<String> userId$,
@@ -139,6 +144,7 @@ class MixpanelAnalytics {
     Function onError,
     String proxyUrl,
     Map<String, String> optionalHeaders,
+    String prefsKey,
   }) {
     _token = token;
     _userId$ = userId$;
@@ -150,6 +156,7 @@ class MixpanelAnalytics {
     _userId$?.listen((id) => _userId = id);
     _proxyUrl = proxyUrl;
     _optionalHeaders = optionalHeaders;
+    _prefsKey = prefsKey ?? _prefsKey;
   }
 
   /// Provides an instance of this class.
@@ -164,6 +171,7 @@ class MixpanelAnalytics {
   /// [onError] is a callback function that will be executed in case there is an error, otherwise `debugPrint` will be used.
   /// [proxyUrl] URL to use in the requests as a proxy. This URL will be used as follows $proxyUrl/mixpanel.api...
   /// [optionalHeaders] http headers to add in each request.
+  /// [prefsKey] key to use in the SharedPreferences. If you leave it empty a default name will be used.
   MixpanelAnalytics.batch({
     @required String token,
     @required Duration uploadInterval,
@@ -175,6 +183,7 @@ class MixpanelAnalytics {
     Function onError,
     String proxyUrl,
     Map<String, String> optionalHeaders,
+    String prefsKey,
   }) {
     _token = token;
     _userId$ = userId$;
@@ -188,6 +197,7 @@ class MixpanelAnalytics {
     _userId$?.listen((id) => _userId = id);
     _proxyUrl = proxyUrl;
     _optionalHeaders = optionalHeaders;
+    _prefsKey = prefsKey ?? _prefsKey;
   }
 
   /// Sends a request to track a specific event.
