@@ -371,9 +371,7 @@ class MixpanelAnalytics {
     }
 
     try {
-      final response = await http.get(Uri.parse(url), headers: {
-        'Content-type': 'application/json',
-      });
+      final response = await http.get(Uri.parse(url));
       return response.statusCode == 200 &&
           _validateResponseBody(url, response.body);
     } on Exception catch (error) {
