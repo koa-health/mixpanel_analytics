@@ -1,3 +1,7 @@
+## [2.0.1] - 2021-05-31
+
+- Fixes issue with CORS in Flutter web
+
 ## [2.0.0] - 2021-03-09
 
 - Migrate to null safety
