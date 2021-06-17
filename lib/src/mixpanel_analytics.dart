@@ -47,6 +47,10 @@ class MixpanelAnalytics {
   /// Sets the value of the userId.
   set userId(String id) => _userId = id;
 
+  /// Sets the optional headers.
+  set optionalHeaders(Map<String, String> optionalHeaders) =>
+      _optionalHeaders = optionalHeaders;
+
   /// Reference to the timer set to upload events in batch
   Timer? _batchTimer;
 
@@ -79,7 +83,7 @@ class MixpanelAnalytics {
 
   static const String baseApi = 'https://api.mixpanel.com';
 
-  static const _prefsKey = 'mixpanel.analytics';
+  static String _prefsKey = 'mixpanel.analytics';
 
   /// Returns the value of the token in mixpanel.
   String get mixpanelToken => _token;
@@ -92,6 +96,9 @@ class MixpanelAnalytics {
 
   /// Proxy url to by pass CORs in flutter web
   final String? _proxyUrl;
+
+  /// Optional headers to add to the requests to MixPanel.
+  Map<String, String>? _optionalHeaders;
 
   /// Used in case we want to remove the timer to send batched events.
   void dispose() {
@@ -110,24 +117,31 @@ class MixpanelAnalytics {
   /// [verbose] true will provide a detailed error cause in case the request is not successful.
   /// [useIp] is the `ip` property as explained in [mixpanel documentation](https://developer.mixpanel.com/docs/http)
   /// [onError] is a callback function that will be executed in case there is an error, otherwise `debugPrint` will be used.
-  MixpanelAnalytics({
-    required String token,
-    Stream<String>? userId$,
-    bool shouldAnonymize = false,
-    ShaFn shaFn = _defaultShaFn,
-    bool verbose = false,
-    bool useIp = false,
-    void Function(Object)? onError,
-    String? proxyUrl,
-  })  : _token = token,
+  /// [proxyUrl] URL to use in the requests as a proxy. This URL will be used as follows $proxyUrl/mixpanel.api...
+  /// [optionalHeaders] http headers to add in each request.
+  /// [prefsKey] key to use in the SharedPreferences. If you leave it empty a default name will be used.
+  MixpanelAnalytics(
+      {required String token,
+      Stream<String>? userId$,
+      bool shouldAnonymize = false,
+      ShaFn shaFn = _defaultShaFn,
+      bool verbose = false,
+      bool useIp = false,
+      void Function(Object)? onError,
+      String? proxyUrl,
+      Map<String, String>? optionalHeaders,
+      String? prefsKey})
+      : _token = token,
         _userId$ = userId$,
         _verbose = verbose,
         _useIp = useIp,
         _onError = onError,
         _shouldAnonymize = shouldAnonymize,
         _shaFn = shaFn,
-        _proxyUrl = proxyUrl {
+        _proxyUrl = proxyUrl,
+        _optionalHeaders = optionalHeaders {
     _userId$?.listen((id) => _userId = id);
+    _prefsKey = prefsKey ?? _prefsKey;
   }
 
   /// Provides an instance of this class.
@@ -140,6 +154,9 @@ class MixpanelAnalytics {
   /// [verbose] true will provide a detailed error cause in case the request is not successful.
   /// [ip] is the `ip` property as explained in [mixpanel documentation](https://developer.mixpanel.com/docs/http)
   /// [onError] is a callback function that will be executed in case there is an error, otherwise `debugPrint` will be used.
+  /// [proxyUrl] URL to use in the requests as a proxy. This URL will be used as follows $proxyUrl/mixpanel.api...
+  /// [optionalHeaders] http headers to add in each request.
+  /// [prefsKey] key to use in the SharedPreferences. If you leave it empty a default name will be used.
   MixpanelAnalytics.batch({
     required String token,
     required Duration uploadInterval,
@@ -150,6 +167,8 @@ class MixpanelAnalytics {
     bool useIp = false,
     void Function(Object)? onError,
     String? proxyUrl,
+    Map<String, String>? optionalHeaders,
+    String? prefsKey,
   })  : _token = token,
         _userId$ = userId$,
         _verbose = verbose,
@@ -158,9 +177,11 @@ class MixpanelAnalytics {
         _shouldAnonymize = shouldAnonymize,
         _shaFn = shaFn,
         _proxyUrl = proxyUrl,
-        _uploadInterval = uploadInterval {
+        _uploadInterval = uploadInterval,
+        _optionalHeaders = optionalHeaders {
     _batchTimer = Timer.periodic(_uploadInterval, (_) => _uploadQueuedEvents());
     _userId$?.listen((id) => _userId = id);
+    _prefsKey = prefsKey ?? _prefsKey;
   }
 
   /// Sends a request to track a specific event.
@@ -371,7 +392,13 @@ class MixpanelAnalytics {
     }
 
     try {
-      final response = await http.get(Uri.parse(url));
+      final headers = {'Content-type': 'application/json'};
+
+      if (_optionalHeaders?.isNotEmpty ?? false) {
+        headers.addAll(_optionalHeaders!);
+      }
+
+      final response = await http.get(Uri.parse(url), headers: headers);
       return response.statusCode == 200 &&
           _validateResponseBody(url, response.body);
     } on Exception catch (error) {
@@ -392,11 +419,14 @@ class MixpanelAnalytics {
       url = '$_proxyUrl/$url';
     }
     try {
-      final response = await http.post(Uri.parse(url), headers: {
-        'Content-type': 'application/x-www-form-urlencoded',
-      }, body: {
-        'data': batch
-      });
+      var headers = {'Content-type': 'application/x-www-form-urlencoded'};
+
+      if (_optionalHeaders?.isNotEmpty ?? false) {
+        headers.addAll(_optionalHeaders!);
+      }
+
+      final response = await http
+          .post(Uri.parse(url), headers: headers, body: {'data': batch});
       return response.statusCode == 200 &&
           _validateResponseBody(url, response.body);
     } on Exception catch (error) {
