@@ -392,7 +392,7 @@ class MixpanelAnalytics {
     }
 
     try {
-      final headers = {'Content-type': 'application/json'};
+      final headers = <String, String>{};
 
       if (_optionalHeaders?.isNotEmpty ?? false) {
         headers.addAll(_optionalHeaders!);
