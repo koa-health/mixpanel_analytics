@@ -1,3 +1,6 @@
+## [2.0.2] - 2021-06-18
+- Add support for optionalHeaders and prefsKey
+
 ## [2.0.1] - 2021-05-31
 
 - Fixes issue with CORS in Flutter web
