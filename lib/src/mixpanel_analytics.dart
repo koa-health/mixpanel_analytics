@@ -39,13 +39,13 @@ class MixpanelAnalytics {
   SharedPreferences? prefs;
 
   /// If exists, will be sent in the event, otherwise anonymousId will be used.
-  final Stream<String>? _userId$;
+  final Stream<String?>? _userId$;
 
   /// Stores the value of the userId
   String? _userId;
 
   /// Sets the value of the userId.
-  set userId(String id) => _userId = id;
+  set userId(String? id) => _userId = id;
 
   /// Sets the optional headers.
   set optionalHeaders(Map<String, String> optionalHeaders) =>
