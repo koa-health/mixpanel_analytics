@@ -129,7 +129,7 @@ class MixpanelAnalytics {
   /// [baseApiUrl] Ingestion API URL. If you don't inform it, the US-based url will be used (api.mixpanel.com). https://developer.mixpanel.com/docs/privacy-security#storing-your-data-in-the-european-union
   MixpanelAnalytics({
     required String token,
-    Stream<String>? userId$,
+    Stream<String?>? userId$,
     bool shouldAnonymize = false,
     ShaFn shaFn = _defaultShaFn,
     bool verbose = false,
@@ -170,7 +170,7 @@ class MixpanelAnalytics {
   MixpanelAnalytics.batch({
     required String token,
     required Duration uploadInterval,
-    Stream<String>? userId$,
+    Stream<String?>? userId$,
     bool shouldAnonymize = false,
     ShaFn shaFn = _defaultShaFn,
     bool verbose = false,
