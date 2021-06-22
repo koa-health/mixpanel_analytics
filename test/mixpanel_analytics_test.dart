@@ -43,8 +43,9 @@ void main() {
     return base64;
   }
 
-  Uri buildGetRequest(String operation, Object event) => Uri.parse(
-      '${MixpanelAnalytics.baseApi}/$operation/?data=${base64Encoder(event)}&verbose=0&ip=0');
+  Uri buildGetRequest(String operation, Object event, String baseApiUrl) =>
+      Uri.parse(
+          '$baseApiUrl/$operation/?data=${base64Encoder(event)}&verbose=0&ip=0');
 
   void stubGet(Response response) {
     when(http.get(any, headers: anyNamed('headers')))
@@ -81,15 +82,19 @@ void main() {
         () async {
       stubGet(Response(fakeResponseNoVerbose['ok']!, 200));
 
-      final expected = buildGetRequest('track', {
-        'event': 'random event',
-        'properties': {
-          'key': 'value',
-          'token': 'some-mixpanel-token',
-          'time': 1561130182320,
-          'distinct_id': 'some-user-id',
+      final expected = buildGetRequest(
+        'track',
+        {
+          'event': 'random event',
+          'properties': {
+            'key': 'value',
+            'token': 'some-mixpanel-token',
+            'time': 1561130182320,
+            'distinct_id': 'some-user-id',
+          },
         },
-      });
+        sut.baseApiUrl,
+      );
 
       final success = await sut.track(
         event: 'random event',
@@ -111,12 +116,16 @@ void main() {
         () async {
       stubGet(Response(fakeResponseNoVerbose['ok']!, 200));
 
-      final expected = buildGetRequest('engage', {
-        '\$set': {'key': 'value'},
-        '\$token': 'some-mixpanel-token',
-        '\$time': 1561130182320,
-        '\$distinct_id': 'some-user-id',
-      });
+      final expected = buildGetRequest(
+        'engage',
+        {
+          '\$set': {'key': 'value'},
+          '\$token': 'some-mixpanel-token',
+          '\$time': 1561130182320,
+          '\$distinct_id': 'some-user-id',
+        },
+        sut.baseApiUrl,
+      );
 
       final success = await sut.engage(
         operation: MixpanelUpdateOperations.$set,

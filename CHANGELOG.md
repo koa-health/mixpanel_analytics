@@ -1,3 +1,7 @@
+## [2.1.0] - 2021-06-22
+
+- Support to add a custom base api url. This basically allows the user to use EU-based web servers as stated in [here](https://developer.mixpanel.com/docs/privacy-security#storing-your-data-in-the-european-union). We're not hardcoding the EU-based url in case Mixpanel considers to add support for more regions.
+
 ## [2.0.3] - 2021-06-22
 
 - Fix userId stream type. The `userId` property can be null.

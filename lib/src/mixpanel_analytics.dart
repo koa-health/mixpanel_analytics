@@ -81,7 +81,7 @@ class MixpanelAnalytics {
   /// We can inject the client required, useful for testing
   Client http = Client();
 
-  static const String baseApi = 'https://api.mixpanel.com';
+  static const String _baseUsApiUrl = 'https://api.mixpanel.com';
 
   static String _prefsKey = 'mixpanel.analytics';
 
@@ -99,6 +99,12 @@ class MixpanelAnalytics {
 
   /// Optional headers to add to the requests to MixPanel.
   Map<String, String>? _optionalHeaders;
+
+  /// By default will point to the US-based Mixpanel servers (api.mixpanel.com)
+  /// Its value can be overriden in the constructor and there you can use, for instance,
+  /// the EU-based servers url: api-eu.mixpanel.com
+  /// See this for more information: https://developer.mixpanel.com/docs/privacy-security#storing-your-data-in-the-european-union
+  final String baseApiUrl;
 
   /// Used in case we want to remove the timer to send batched events.
   void dispose() {
@@ -120,18 +126,20 @@ class MixpanelAnalytics {
   /// [proxyUrl] URL to use in the requests as a proxy. This URL will be used as follows $proxyUrl/mixpanel.api...
   /// [optionalHeaders] http headers to add in each request.
   /// [prefsKey] key to use in the SharedPreferences. If you leave it empty a default name will be used.
-  MixpanelAnalytics(
-      {required String token,
-      Stream<String>? userId$,
-      bool shouldAnonymize = false,
-      ShaFn shaFn = _defaultShaFn,
-      bool verbose = false,
-      bool useIp = false,
-      void Function(Object)? onError,
-      String? proxyUrl,
-      Map<String, String>? optionalHeaders,
-      String? prefsKey})
-      : _token = token,
+  /// [baseApiUrl] Ingestion API URL. If you don't inform it, the US-based url will be used (api.mixpanel.com). https://developer.mixpanel.com/docs/privacy-security#storing-your-data-in-the-european-union
+  MixpanelAnalytics({
+    required String token,
+    Stream<String>? userId$,
+    bool shouldAnonymize = false,
+    ShaFn shaFn = _defaultShaFn,
+    bool verbose = false,
+    bool useIp = false,
+    void Function(Object)? onError,
+    String? proxyUrl,
+    Map<String, String>? optionalHeaders,
+    String? prefsKey,
+    String? baseApiUrl,
+  })  : _token = token,
         _userId$ = userId$,
         _verbose = verbose,
         _useIp = useIp,
@@ -139,7 +147,8 @@ class MixpanelAnalytics {
         _shouldAnonymize = shouldAnonymize,
         _shaFn = shaFn,
         _proxyUrl = proxyUrl,
-        _optionalHeaders = optionalHeaders {
+        _optionalHeaders = optionalHeaders,
+        baseApiUrl = baseApiUrl ?? _baseUsApiUrl {
     _userId$?.listen((id) => _userId = id);
     _prefsKey = prefsKey ?? _prefsKey;
   }
@@ -157,6 +166,7 @@ class MixpanelAnalytics {
   /// [proxyUrl] URL to use in the requests as a proxy. This URL will be used as follows $proxyUrl/mixpanel.api...
   /// [optionalHeaders] http headers to add in each request.
   /// [prefsKey] key to use in the SharedPreferences. If you leave it empty a default name will be used.
+  /// [baseApiUrl] Ingestion API URL. If you don't inform it, the US-based url will be used (api.mixpanel.com). https://developer.mixpanel.com/docs/privacy-security#storing-your-data-in-the-european-union
   MixpanelAnalytics.batch({
     required String token,
     required Duration uploadInterval,
@@ -169,6 +179,7 @@ class MixpanelAnalytics {
     String? proxyUrl,
     Map<String, String>? optionalHeaders,
     String? prefsKey,
+    String? baseApiUrl,
   })  : _token = token,
         _userId$ = userId$,
         _verbose = verbose,
@@ -178,7 +189,8 @@ class MixpanelAnalytics {
         _shaFn = shaFn,
         _proxyUrl = proxyUrl,
         _uploadInterval = uploadInterval,
-        _optionalHeaders = optionalHeaders {
+        _optionalHeaders = optionalHeaders,
+        baseApiUrl = baseApiUrl ?? _baseUsApiUrl {
     _batchTimer = Timer.periodic(_uploadInterval, (_) => _uploadQueuedEvents());
     _userId$?.listen((id) => _userId = id);
     _prefsKey = prefsKey ?? _prefsKey;
@@ -384,7 +396,7 @@ class MixpanelAnalytics {
 
   /// Sends the event to the mixpanel API endpoint.
   Future<bool> _sendEvent(String event, String op) async {
-    var url = '$baseApi/$op/?data=$event&verbose=${_verbose ? 1 : 0}'
+    var url = '$baseApiUrl/$op/?data=$event&verbose=${_verbose ? 1 : 0}'
         '&ip=${_useIp ? 1 : 0}';
     if (_proxyUrl != null) {
       url = url.replaceFirst('https://', '');
@@ -413,7 +425,8 @@ class MixpanelAnalytics {
 
   /// Sends the batch of events to the mixpanel API endpoint.
   Future<bool> _sendBatch(String batch, String op) async {
-    var url = '$baseApi/$op/?verbose=${_verbose ? 1 : 0}&ip=${_useIp ? 1 : 0}';
+    var url =
+        '$baseApiUrl/$op/?verbose=${_verbose ? 1 : 0}&ip=${_useIp ? 1 : 0}';
     if (_proxyUrl != null) {
       url = url.replaceFirst('https://', '');
       url = '$_proxyUrl/$url';
