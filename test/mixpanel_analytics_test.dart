@@ -28,8 +28,7 @@ void main() {
   late StreamController<String> userId$;
 
   void stubPrefsSetString() {
-    when(prefs.setString('mixpanel.analytics', any))
-        .thenAnswer((_) async => true);
+    when(prefs.setString('mixpanel.analytics', any)).thenAnswer((_) async => true);
   }
 
   void stubPrefsGetString(String? value) {
@@ -43,12 +42,11 @@ void main() {
     return base64;
   }
 
-  Uri buildGetRequest(String operation, Object event) => Uri.parse(
-      '${MixpanelAnalytics.baseApi}/$operation/?data=${base64Encoder(event)}&verbose=0&ip=0');
+  Uri buildGetRequest(String operation, Object event, {String? customUrl}) =>
+      Uri.parse('${customUrl ?? MixpanelAnalytics.baseApi}/$operation/?data=${base64Encoder(event)}&verbose=0&ip=0');
 
   void stubGet(Response response) {
-    when(http.get(any, headers: anyNamed('headers')))
-        .thenAnswer((_) async => response);
+    when(http.get(any, headers: anyNamed('headers'))).thenAnswer((_) async => response);
   }
 
   void stubPost(Response response) {
@@ -76,9 +74,7 @@ void main() {
       sut.dispose();
     });
 
-    test(
-        '.track() sends an event to mixpanel with proper syntax using REST API',
-        () async {
+    test('.track() sends an event to mixpanel with proper syntax using REST API', () async {
       stubGet(Response(fakeResponseNoVerbose['ok']!, 200));
 
       final expected = buildGetRequest('track', {
@@ -100,15 +96,12 @@ void main() {
       expect(success, true);
 
       expect(
-          verify(http.get(captureAny, headers: anyNamed('headers')))
-              .captured
-              .single,
-          expected);
+        verify(http.get(captureAny, headers: anyNamed('headers'))).captured.single,
+        expected,
+      );
     });
 
-    test(
-        '.engage() sends an event to mixpanel with proper syntax using REST API',
-        () async {
+    test('.engage() sends an event to mixpanel with proper syntax using REST API', () async {
       stubGet(Response(fakeResponseNoVerbose['ok']!, 200));
 
       final expected = buildGetRequest('engage', {
@@ -127,10 +120,9 @@ void main() {
       expect(success, true);
 
       expect(
-          verify(http.get(captureAny, headers: anyNamed('headers')))
-              .captured
-              .single,
-          expected);
+        verify(http.get(captureAny, headers: anyNamed('headers'))).captured.single,
+        expected,
+      );
     });
 
     test('an unsuccessful request returns false', () async {
@@ -171,8 +163,7 @@ void main() {
       sut.dispose();
     });
 
-    test(
-        '.track() sends a bunch of events in batch to mixpanel with proper syntax using REST API after X seconds',
+    test('.track() sends a bunch of events in batch to mixpanel with proper syntax using REST API after X seconds',
         () async {
       stubPrefsSetString();
       stubPrefsGetString(null);
@@ -204,10 +195,7 @@ void main() {
 
       final success = await Future.wait(
         ['value1', 'value2'].map(
-          (v) => sut.track(
-              event: 'random event',
-              properties: {'key': v},
-              time: DateTime.parse(fixedTimeString)),
+          (v) => sut.track(event: 'random event', properties: {'key': v}, time: DateTime.parse(fixedTimeString)),
         ),
       );
 
@@ -218,17 +206,12 @@ void main() {
       await Future.delayed(Duration(seconds: uploadIntervalSeconds + 1), () {});
 
       expect(
-        verify(http.post(any,
-                headers: anyNamed('headers'), body: captureAnyNamed('body')))
-            .captured
-            .single,
+        verify(http.post(any, headers: anyNamed('headers'), body: captureAnyNamed('body'))).captured.single,
         expected,
       );
     });
 
-    test(
-        'batch mode will send whatever is in shared preferences whenever an event is sent',
-        () async {
+    test('batch mode will send whatever is in shared preferences whenever an event is sent', () async {
       final events = {
         'track': [
           {
@@ -285,12 +268,89 @@ void main() {
       await Future.delayed(Duration(seconds: uploadIntervalSeconds + 2), () {});
 
       expect(
-        verify(http.post(any,
-                headers: anyNamed('headers'), body: captureAnyNamed('body')))
-            .captured
-            .single,
+        verify(http.post(any, headers: anyNamed('headers'), body: captureAnyNamed('body'))).captured.single,
         expected,
       );
+    });
+  });
+
+  group('Custom Endpoint /', () {
+    setUp(() {
+      userId$ = StreamController<String>();
+      http = MockClient();
+      sut = MixpanelAnalytics(
+        token: mixpanelToken,
+        userId$: userId$.stream,
+        verbose: false,
+        useIp: false,
+        onError: (_) {},
+        customApi: 'https://api-eu.mixpanel.com',
+      )..http = http;
+      userId$.add(userId);
+    });
+
+    tearDown(() {
+      userId$.close();
+      sut.dispose();
+    });
+
+    test('.track() uses custom endpoint if supplied', () async {
+      // arrange
+      stubGet(Response(fakeResponseNoVerbose['ok']!, 200));
+
+      final expected = buildGetRequest(
+        'track',
+        {
+          'event': 'random event',
+          'properties': {
+            'key': 'value',
+            'token': 'some-mixpanel-token',
+            'time': 1561130182320,
+            'distinct_id': 'some-user-id',
+          },
+        },
+        customUrl: 'https://api-eu.mixpanel.com',
+      );
+
+      // act
+      final success = await sut.track(
+        event: 'random event',
+        properties: {'key': 'value'},
+        time: DateTime.parse(fixedTimeString),
+      );
+
+      // assert
+      expect(success, true);
+
+      verify(http.get(expected, headers: anyNamed('headers')));
+    });
+
+    test('.engage() uses custom endpoint if supplied', () async {
+      // arrange
+      stubGet(Response(fakeResponseNoVerbose['ok']!, 200));
+
+      final expected = buildGetRequest(
+        'engage',
+        {
+          '\$set': {'key': 'value'},
+          '\$token': 'some-mixpanel-token',
+          '\$time': 1561130182320,
+          '\$distinct_id': 'some-user-id',
+        },
+        customUrl: 'https://api-eu.mixpanel.com',
+      );
+
+      // act
+      final success = await sut.engage(
+        operation: MixpanelUpdateOperations.$set,
+        value: {'key': 'value'},
+        time: DateTime.parse(fixedTimeString),
+      );
+
+      // assert
+      expect(success, true);
+
+      verify(http.get(expected, headers: anyNamed('headers')));
     });
   });
 }

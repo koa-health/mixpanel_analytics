@@ -48,8 +48,7 @@ class MixpanelAnalytics {
   set userId(String id) => _userId = id;
 
   /// Sets the optional headers.
-  set optionalHeaders(Map<String, String> optionalHeaders) =>
-      _optionalHeaders = optionalHeaders;
+  set optionalHeaders(Map<String, String> optionalHeaders) => _optionalHeaders = optionalHeaders;
 
   /// Reference to the timer set to upload events in batch
   Timer? _batchTimer;
@@ -82,6 +81,9 @@ class MixpanelAnalytics {
   Client http = Client();
 
   static const String baseApi = 'https://api.mixpanel.com';
+
+  /// Can be used to set custom api endpoint
+  final String? _customApi;
 
   static String _prefsKey = 'mixpanel.analytics';
 
@@ -120,18 +122,19 @@ class MixpanelAnalytics {
   /// [proxyUrl] URL to use in the requests as a proxy. This URL will be used as follows $proxyUrl/mixpanel.api...
   /// [optionalHeaders] http headers to add in each request.
   /// [prefsKey] key to use in the SharedPreferences. If you leave it empty a default name will be used.
-  MixpanelAnalytics(
-      {required String token,
-      Stream<String>? userId$,
-      bool shouldAnonymize = false,
-      ShaFn shaFn = _defaultShaFn,
-      bool verbose = false,
-      bool useIp = false,
-      void Function(Object)? onError,
-      String? proxyUrl,
-      Map<String, String>? optionalHeaders,
-      String? prefsKey})
-      : _token = token,
+  MixpanelAnalytics({
+    required String token,
+    Stream<String>? userId$,
+    bool shouldAnonymize = false,
+    ShaFn shaFn = _defaultShaFn,
+    bool verbose = false,
+    bool useIp = false,
+    void Function(Object)? onError,
+    String? proxyUrl,
+    Map<String, String>? optionalHeaders,
+    String? prefsKey,
+    String? customApi,
+  })  : _token = token,
         _userId$ = userId$,
         _verbose = verbose,
         _useIp = useIp,
@@ -139,7 +142,8 @@ class MixpanelAnalytics {
         _shouldAnonymize = shouldAnonymize,
         _shaFn = shaFn,
         _proxyUrl = proxyUrl,
-        _optionalHeaders = optionalHeaders {
+        _optionalHeaders = optionalHeaders,
+        _customApi = customApi {
     _userId$?.listen((id) => _userId = id);
     _prefsKey = prefsKey ?? _prefsKey;
   }
@@ -169,6 +173,7 @@ class MixpanelAnalytics {
     String? proxyUrl,
     Map<String, String>? optionalHeaders,
     String? prefsKey,
+    String? customApi,
   })  : _token = token,
         _userId$ = userId$,
         _verbose = verbose,
@@ -178,7 +183,8 @@ class MixpanelAnalytics {
         _shaFn = shaFn,
         _proxyUrl = proxyUrl,
         _uploadInterval = uploadInterval,
-        _optionalHeaders = optionalHeaders {
+        _optionalHeaders = optionalHeaders,
+        _customApi = customApi {
     _batchTimer = Timer.periodic(_uploadInterval, (_) => _uploadQueuedEvents());
     _userId$?.listen((id) => _userId = id);
     _prefsKey = prefsKey ?? _prefsKey;
@@ -198,8 +204,7 @@ class MixpanelAnalytics {
     String? ip,
     String? insertId,
   }) async {
-    final trackEvent = _createTrackEvent(
-        event, properties, time ?? DateTime.now(), ip, insertId);
+    final trackEvent = _createTrackEvent(event, properties, time ?? DateTime.now(), ip, insertId);
 
     if (isBatchMode) {
       // TODO: this should be place within an init() along within the constructor.
@@ -234,8 +239,7 @@ class MixpanelAnalytics {
     bool? ignoreTime,
     bool? ignoreAlias,
   }) async {
-    final engageEvent = _createEngageEvent(
-        operation, value, time ?? DateTime.now(), ip, ignoreTime, ignoreAlias);
+    final engageEvent = _createEngageEvent(operation, value, time ?? DateTime.now(), ip, ignoreTime, ignoreAlias);
 
     if (isBatchMode) {
       // TODO: this should be place within an init() along within the constructor.
@@ -269,8 +273,7 @@ class MixpanelAnalytics {
   Future<bool> _saveQueuedEventsToLocalStorage() async {
     prefs ??= await SharedPreferences.getInstance();
     final encoded = json.encode(_queuedEvents);
-    final result =
-        await prefs!.setString(_prefsKey, encoded).catchError((error) {
+    final result = await prefs!.setString(_prefsKey, encoded).catchError((error) {
       _onErrorHandler(error, 'Error saving events in storage');
       return false;
     });
@@ -286,8 +289,7 @@ class MixpanelAnalytics {
   }
 
   /// As the API for Mixpanel only allows 50 events per batch, we need to restrict the events sent on each request.
-  int _getMaximumRange(int length) =>
-      length < maxEventsInBatchRequest ? length : maxEventsInBatchRequest;
+  int _getMaximumRange(int length) => length < maxEventsInBatchRequest ? length : maxEventsInBatchRequest;
 
   /// Uploads all pending events in batches of maximum [maxEventsInBatchRequest].
   Future<void> _uploadEvents(List<dynamic> events, Function sendFn) async {
@@ -384,7 +386,8 @@ class MixpanelAnalytics {
 
   /// Sends the event to the mixpanel API endpoint.
   Future<bool> _sendEvent(String event, String op) async {
-    var url = '$baseApi/$op/?data=$event&verbose=${_verbose ? 1 : 0}'
+    var endpoint = _customApi ?? baseApi;
+    var url = '$endpoint/$op/?data=$event&verbose=${_verbose ? 1 : 0}'
         '&ip=${_useIp ? 1 : 0}';
     if (_proxyUrl != null) {
       url = url.replaceFirst('https://', '');
@@ -399,8 +402,7 @@ class MixpanelAnalytics {
       }
 
       final response = await http.get(Uri.parse(url), headers: headers);
-      return response.statusCode == 200 &&
-          _validateResponseBody(url, response.body);
+      return response.statusCode == 200 && _validateResponseBody(url, response.body);
     } on Exception catch (error) {
       _onErrorHandler(error, 'Request error to $url');
       return false;
@@ -413,7 +415,8 @@ class MixpanelAnalytics {
 
   /// Sends the batch of events to the mixpanel API endpoint.
   Future<bool> _sendBatch(String batch, String op) async {
-    var url = '$baseApi/$op/?verbose=${_verbose ? 1 : 0}&ip=${_useIp ? 1 : 0}';
+    var endpoint = _customApi ?? baseApi;
+    var url = '$endpoint/$op/?verbose=${_verbose ? 1 : 0}&ip=${_useIp ? 1 : 0}';
     if (_proxyUrl != null) {
       url = url.replaceFirst('https://', '');
       url = '$_proxyUrl/$url';
@@ -425,10 +428,8 @@ class MixpanelAnalytics {
         headers.addAll(_optionalHeaders!);
       }
 
-      final response = await http
-          .post(Uri.parse(url), headers: headers, body: {'data': batch});
-      return response.statusCode == 200 &&
-          _validateResponseBody(url, response.body);
+      final response = await http.post(Uri.parse(url), headers: headers, body: {'data': batch});
+      return response.statusCode == 200 && _validateResponseBody(url, response.body);
     } on Exception catch (error) {
       _onErrorHandler(error, 'Request error to $url');
       return false;
