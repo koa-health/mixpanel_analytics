@@ -122,6 +122,7 @@ class MixpanelAnalytics {
   /// [proxyUrl] URL to use in the requests as a proxy. This URL will be used as follows $proxyUrl/mixpanel.api...
   /// [optionalHeaders] http headers to add in each request.
   /// [prefsKey] key to use in the SharedPreferences. If you leave it empty a default name will be used.
+  /// [customApi] can be used to set custom api endpoint
   MixpanelAnalytics({
     required String token,
     Stream<String>? userId$,
@@ -161,6 +162,7 @@ class MixpanelAnalytics {
   /// [proxyUrl] URL to use in the requests as a proxy. This URL will be used as follows $proxyUrl/mixpanel.api...
   /// [optionalHeaders] http headers to add in each request.
   /// [prefsKey] key to use in the SharedPreferences. If you leave it empty a default name will be used.
+  /// [customApi] can be used to set custom api endpoint
   MixpanelAnalytics.batch({
     required String token,
     required Duration uploadInterval,
