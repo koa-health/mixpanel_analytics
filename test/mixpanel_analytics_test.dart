@@ -6,7 +6,6 @@ import 'package:http/http.dart' show Client, Response;
 import 'package:mixpanel_analytics/mixpanel_analytics.dart';
 import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import 'mixpanel_analytics_test.mocks.dart';
 
@@ -20,21 +19,11 @@ const Map<String, String> fakeResponseNoVerbose = {'ok': '1', 'nook': '0'};
 
 const String fakeNoOkResponseNoVerbose = '0';
 
-@GenerateMocks([Client, SharedPreferences])
+@GenerateMocks([Client])
 void main() {
   late MockClient http;
-  late MockSharedPreferences prefs;
   late MixpanelAnalytics sut;
   late StreamController<String> userId$;
-
-  void stubPrefsSetString() {
-    when(prefs.setString('mixpanel.analytics', any))
-        .thenAnswer((_) async => true);
-  }
-
-  void stubPrefsGetString(String? value) {
-    when(prefs.getString('mixpanel.analytics')).thenReturn(value);
-  }
 
   String base64Encoder(Object event) {
     final str = json.encode(event);
@@ -160,7 +149,6 @@ void main() {
 
     setUp(() {
       userId$ = StreamController<String>();
-      prefs = MockSharedPreferences();
       http = MockClient();
       sut = MixpanelAnalytics.batch(
         token: mixpanelToken,
@@ -169,9 +157,7 @@ void main() {
         verbose: false,
         useIp: false,
         onError: (_) {},
-      )
-        ..http = http
-        ..prefs = prefs;
+      )..http = http;
       userId$.add(userId);
     });
 
@@ -183,9 +169,6 @@ void main() {
     test(
         '.track() sends a bunch of events in batch to mixpanel with proper syntax using REST API after X seconds',
         () async {
-      stubPrefsSetString();
-      stubPrefsGetString(null);
-
       stubPost(Response(fakeResponseNoVerbose['ok']!, 200));
 
       final expected = {
@@ -270,10 +253,6 @@ void main() {
           'distinct_id': 'some-user-id'
         },
       };
-
-      stubPrefsSetString();
-
-      stubPrefsGetString(json.encode(events));
 
       stubPost(Response(fakeResponseNoVerbose['ok']!, 200));
 
