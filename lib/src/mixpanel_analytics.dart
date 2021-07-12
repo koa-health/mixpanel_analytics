@@ -3,7 +3,7 @@ import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+// import 'package:shared_preferences/shared_preferences.dart';
 
 enum MixpanelUpdateOperations {
   $set,
@@ -15,6 +15,40 @@ enum MixpanelUpdateOperations {
   $unset,
   $delete,
 }
+
+abstract class StringCache {
+  Future<String?> getString(String key);
+  Future<bool> setString(String key, String value);
+}
+
+class InMemoryStringCache implements StringCache {
+  final _map = <String, String>{};
+
+  @override
+  Future<String?> getString(String key) => Future.value(_map[key]);
+
+  @override
+  Future<bool> setString(String key, String value) {
+    _map[key] = value;
+    return Future.value(true);
+  }
+}
+
+// class SharedPreferencesStringCache implements StringCache {
+//   SharedPreferences? _prefs;
+//
+//   @override
+//   Future<String?> getString(String key) async {
+//     _prefs ??= await SharedPreferences.getInstance();
+//     return _prefs!.getString(key);
+//   }
+//
+//   @override
+//   Future<bool> setString(String key, String value) async {
+//     _prefs ??= await SharedPreferences.getInstance();
+//     return _prefs!.setString(key, value);
+//   }
+// }
 
 typedef ShaFn = String Function(String value);
 
@@ -33,10 +67,7 @@ class MixpanelAnalytics {
   /// Will be zero by default
   Duration _uploadInterval = Duration.zero;
 
-  /// In case we use [MixpanelAnalytics.batch()] we need to provide a storage provider
-  /// This will be used to save the events not sent
-  @visibleForTesting
-  SharedPreferences? prefs;
+  final StringCache _cache;
 
   /// If exists, will be sent in the event, otherwise anonymousId will be used.
   final Stream<String?>? _userId$;
@@ -129,6 +160,7 @@ class MixpanelAnalytics {
   /// [baseApiUrl] Ingestion API URL. If you don't inform it, the US-based url will be used (api.mixpanel.com). https://developer.mixpanel.com/docs/privacy-security#storing-your-data-in-the-european-union
   MixpanelAnalytics({
     required String token,
+    StringCache? cache,
     Stream<String?>? userId$,
     bool shouldAnonymize = false,
     ShaFn shaFn = _defaultShaFn,
@@ -140,6 +172,7 @@ class MixpanelAnalytics {
     String? prefsKey,
     String? baseApiUrl,
   })  : _token = token,
+        _cache = cache ?? InMemoryStringCache(),
         _userId$ = userId$,
         _verbose = verbose,
         _useIp = useIp,
@@ -169,6 +202,7 @@ class MixpanelAnalytics {
   /// [baseApiUrl] Ingestion API URL. If you don't inform it, the US-based url will be used (api.mixpanel.com). https://developer.mixpanel.com/docs/privacy-security#storing-your-data-in-the-european-union
   MixpanelAnalytics.batch({
     required String token,
+    StringCache? cache,
     required Duration uploadInterval,
     Stream<String?>? userId$,
     bool shouldAnonymize = false,
@@ -181,6 +215,7 @@ class MixpanelAnalytics {
     String? prefsKey,
     String? baseApiUrl,
   })  : _token = token,
+        _cache = cache ?? InMemoryStringCache(),
         _userId$ = userId$,
         _verbose = verbose,
         _useIp = useIp,
@@ -269,8 +304,7 @@ class MixpanelAnalytics {
   /// Reads queued events from the storage when we are in batch mode.
   /// We do this in case the app was closed with events pending to be sent.
   Future<void> _restoreQueuedEventsFromStorage() async {
-    prefs ??= await SharedPreferences.getInstance();
-    final encoded = prefs!.getString(_prefsKey);
+    final encoded = await _cache.getString(_prefsKey);
     if (encoded != null) {
       Map<String, dynamic> events = json.decode(encoded);
       _queuedEvents.addAll(events);
@@ -279,10 +313,9 @@ class MixpanelAnalytics {
 
   /// If we are in batch mode we save all events in storage in case the app is closed.
   Future<bool> _saveQueuedEventsToLocalStorage() async {
-    prefs ??= await SharedPreferences.getInstance();
     final encoded = json.encode(_queuedEvents);
     final result =
-        await prefs!.setString(_prefsKey, encoded).catchError((error) {
+        await _cache.setString(_prefsKey, encoded).catchError((error) {
       _onErrorHandler(error, 'Error saving events in storage');
       return false;
     });
