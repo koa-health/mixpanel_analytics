@@ -3,7 +3,7 @@ import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+// import 'package:shared_preferences/shared_preferences.dart';
 
 enum MixpanelUpdateOperations {
   $set,
@@ -34,21 +34,21 @@ class InMemoryStringCache implements StringCache {
   }
 }
 
-class SharedPreferencesStringCache implements StringCache {
-  SharedPreferences? _prefs;
-
-  @override
-  Future<String?> getString(String key) async {
-    _prefs ??= await SharedPreferences.getInstance();
-    return _prefs!.getString(key);
-  }
-
-  @override
-  Future<bool> setString(String key, String value) async {
-    _prefs ??= await SharedPreferences.getInstance();
-    return _prefs!.setString(key, value);
-  }
-}
+// class SharedPreferencesStringCache implements StringCache {
+//   SharedPreferences? _prefs;
+//
+//   @override
+//   Future<String?> getString(String key) async {
+//     _prefs ??= await SharedPreferences.getInstance();
+//     return _prefs!.getString(key);
+//   }
+//
+//   @override
+//   Future<bool> setString(String key, String value) async {
+//     _prefs ??= await SharedPreferences.getInstance();
+//     return _prefs!.setString(key, value);
+//   }
+// }
 
 typedef ShaFn = String Function(String value);
 
